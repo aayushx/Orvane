@@ -18,6 +18,11 @@ import com.tasky.app.ui.theme.TaskyTheme
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
+    companion object {
+        /** When launched with this extra, the app opens straight into quick add. */
+        const val EXTRA_OPEN_QUICK_ADD = "com.tasky.app.extra.OPEN_QUICK_ADD"
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()

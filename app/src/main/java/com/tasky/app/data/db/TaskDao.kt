@@ -99,6 +99,9 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE title LIKE '%' || :query || '%' OR note LIKE '%' || :query || '%'")
     suspend fun searchOnce(query: String): List<TaskEntity>
 
+    @Query("SELECT * FROM tasks")
+    suspend fun allTasks(): List<TaskEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(tasks: List<TaskEntity>)
 

@@ -154,6 +154,12 @@ interface AttachmentDao {
     @Query("SELECT * FROM attachments WHERE taskId = :taskId")
     suspend fun forTask(taskId: String): List<AttachmentEntity>
 
+    @Query("SELECT * FROM attachments WHERE id = :id")
+    suspend fun byId(id: String): AttachmentEntity?
+
+    @Query("SELECT * FROM attachments")
+    suspend fun all(): List<AttachmentEntity>
+
     @Upsert
     suspend fun upsert(attachment: AttachmentEntity)
 
