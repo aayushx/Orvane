@@ -73,6 +73,10 @@ class TaskRepository @Inject constructor(
 
     fun observeChildren(parentId: String): Flow<List<TaskEntity>> = taskDao.observeChildren(parentId)
 
+    fun observeSubtasks(): Flow<List<TaskEntity>> = taskDao.observeSubtasks()
+
+    fun observeTagRefs(): Flow<List<com.tasky.app.data.db.TaskTagCrossRef>> = tagDao.observeRefs()
+
     fun observeReminders(taskId: String): Flow<List<ReminderEntity>> = reminderDao.observeForTask(taskId)
 
     fun observeLists(): Flow<List<ListEntity>> = listDao.observeAll()
@@ -86,6 +90,9 @@ class TaskRepository @Inject constructor(
     fun observeFilters(): Flow<List<FilterEntity>> = filterDao.observeAll()
 
     fun observeTrash(): Flow<List<TaskEntity>> = taskDao.observeTrash()
+
+    /** Live count of tasks due today (for badges). */
+    fun observeTodayCount(): Flow<Int> = taskDao.observeCountDueInRange(Time.startOfToday(), Time.endOfToday())
 
     fun observeCompleted(): Flow<List<TaskEntity>> = taskDao.observeCompleted()
 

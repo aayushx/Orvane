@@ -15,6 +15,9 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE parentId IS NULL AND deletedAt IS NULL AND listId = :listId AND completedAt IS NULL")
     fun observeActiveByList(listId: String?): Flow<List<TaskEntity>>
 
+    @Query("SELECT * FROM tasks WHERE parentId IS NOT NULL AND deletedAt IS NULL")
+    fun observeSubtasks(): Flow<List<TaskEntity>>
+
     @Query("SELECT * FROM tasks WHERE parentId IS NULL AND deletedAt IS NULL AND completedAt IS NULL")
     fun observeAllActive(): Flow<List<TaskEntity>>
 

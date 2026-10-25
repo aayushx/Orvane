@@ -65,6 +65,9 @@ interface FolderDao {
 
 @Dao
 interface TagDao {
+    @Query("SELECT * FROM task_tags")
+    fun observeRefs(): Flow<List<TaskTagCrossRef>>
+
     @Query("SELECT tags.*, COUNT(taskId) AS taskCount FROM tags LEFT JOIN task_tags ON task_tags.tagId = tags.id GROUP BY tags.id ORDER BY tags.name ASC")
     fun observeAll(): Flow<List<TagWithCount>>
 
