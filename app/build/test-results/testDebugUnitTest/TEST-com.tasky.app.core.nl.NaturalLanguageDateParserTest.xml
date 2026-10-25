@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.tasky.app.core.nl.NaturalLanguageDateParserTest" tests="13" skipped="0" failures="0" errors="0" timestamp="2026-10-25T15:59:53.034Z" hostname="s4ms3p1ol" time="0.099">
+  <properties/>
+  <testcase name="next monday skips a week ahead" classname="com.tasky.app.core.nl.NaturalLanguageDateParserTest" time="0.067"/>
+  <testcase name="multiple tags and title cleanup" classname="com.tasky.app.core.nl.NaturalLanguageDateParserTest" time="0.007"/>
+  <testcase name="tonight maps to today 8pm" classname="com.tasky.app.core.nl.NaturalLanguageDateParserTest" time="0.001"/>
+  <testcase name="in 4 hours is timed" classname="com.tasky.app.core.nl.NaturalLanguageDateParserTest" time="0.002"/>
+  <testcase name="time formats" classname="com.tasky.app.core.nl.NaturalLanguageDateParserTest" time="0.006"/>
+  <testcase name="weekday plain maps within 7 days" classname="com.tasky.app.core.nl.NaturalLanguageDateParserTest" time="0.002"/>
+  <testcase name="token order independence" classname="com.tasky.app.core.nl.NaturalLanguageDateParserTest" time="0.002"/>
+  <testcase name="in 3 days and in 2 weeks" classname="com.tasky.app.core.nl.NaturalLanguageDateParserTest" time="0.002"/>
+  <testcase name="explicit date formats" classname="com.tasky.app.core.nl.NaturalLanguageDateParserTest" time="0.003"/>
+  <testcase name="priorities" classname="com.tasky.app.core.nl.NaturalLanguageDateParserTest" time="0.002"/>
+  <testcase name="acceptance scenario - submit report tomorrow 5pm !High #work" classname="com.tasky.app.core.nl.NaturalLanguageDateParserTest" time="0.0"/>
+  <testcase name="no matches leaves title intact" classname="com.tasky.app.core.nl.NaturalLanguageDateParserTest" time="0.001"/>
+  <testcase name="today and tomorrow basic dates" classname="com.tasky.app.core.nl.NaturalLanguageDateParserTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

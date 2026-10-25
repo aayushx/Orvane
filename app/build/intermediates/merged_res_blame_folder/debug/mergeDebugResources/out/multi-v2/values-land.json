@@ -1,0 +1,19 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.tasky.app-mergeDebugResources-81:/values-land/values-land.xml",
+            "map": [
+                {
+                    "source": "/home/aayushx/.gradle/caches/8.14.3/transforms/e2ed0f0a91891d8295aa06a26b04d44a/transformed/appcompat-1.7.1/res/values-land/values-land.xml",
+                    "from": {
+                        "startLines": "2,3,4",
+                        "startColumns": "4,4,4",
+                        "startOffsets": "55,125,196",
+                        "endColumns": "69,70,67",
+                        "endOffsets": "120,191,259"
+                    }
+                }
+            ]
+        }
+    ]
+}
