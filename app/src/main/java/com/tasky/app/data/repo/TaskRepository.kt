@@ -94,6 +94,14 @@ class TaskRepository @Inject constructor(
     /** Live count of tasks due today (for badges). */
     fun observeTodayCount(): Flow<Int> = taskDao.observeCountDueInRange(Time.startOfToday(), Time.endOfToday())
 
+    /** Active top-level tasks due inside a range (calendar dots / agenda). */
+    suspend fun tasksDueInRange(rangeStart: Long, rangeEnd: Long): List<TaskEntity> =
+        withContext(Dispatchers.IO) { taskDao.dueInRange(rangeStart, rangeEnd) }
+
+    /** Tasks with a due date but no exact time are fine to move freely. */
+    suspend fun unscheduledTaskCandidates(rangeStart: Long, rangeEnd: Long): List<TaskEntity> =
+        withContext(Dispatchers.IO) { taskDao.dueInRange(rangeStart, rangeEnd).filter { it.isDueAllDay } }
+
     fun observeCompleted(): Flow<List<TaskEntity>> = taskDao.observeCompleted()
 
     fun observeSearch(query: String): Flow<List<TaskEntity>> = taskDao.observeSearch(query)

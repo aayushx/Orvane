@@ -21,6 +21,9 @@ interface CalendarEventDao {
     @Query("SELECT * FROM calendar_events WHERE source = 1")
     suspend fun deviceEvents(): List<CalendarEventEntity>
 
+    @Query("SELECT * FROM calendar_events WHERE linkedTaskId = :taskId")
+    suspend fun forLinkedTask(taskId: String): List<CalendarEventEntity>
+
     @Query("SELECT * FROM calendar_events WHERE feedId = :feedId")
     suspend fun forFeed(feedId: String): List<CalendarEventEntity>
 
