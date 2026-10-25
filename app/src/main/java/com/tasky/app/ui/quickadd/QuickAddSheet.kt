@@ -39,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -88,6 +89,7 @@ fun QuickAddSheet(
                 onValueChange = { vm.text.value = it },
                 modifier = Modifier
                     .fillMaxWidth()
+                    .testTag("quick_add_input")
                     .focusRequester(focusRequester),
                 placeholder = { Text("New task") },
                 maxLines = 3,

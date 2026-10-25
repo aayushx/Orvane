@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.glance.appwidget.updateAll
 import com.tasky.app.data.repo.HabitRepository
 import com.tasky.app.data.repo.TaskRepository
+import com.tasky.app.data.settings.SettingsRepository
 import dagger.hilt.EntryPoint
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.InstallIn
@@ -21,6 +22,8 @@ interface TaskyWidgetsEntryPoint {
     fun taskRepository(): TaskRepository
 
     fun habitRepository(): HabitRepository
+
+    fun settingsRepository(): SettingsRepository
 }
 
 internal fun widgetsEntryPoint(context: Context): TaskyWidgetsEntryPoint =
