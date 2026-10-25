@@ -41,6 +41,14 @@ class HabitRepository @Inject constructor(
 
     fun observeChecksForToday(): Flow<List<HabitCheckEntity>> = checkDao.observeForDay(Time.todayEpochDay())
 
+    fun observeAllChecks(): Flow<List<HabitCheckEntity>> = checkDao.observeAll()
+
+    fun newId(): String = UUID.randomUUID().toString()
+
+    /** Today's check status: null when nothing recorded. */
+    suspend fun statusForDay(habitId: String, epochDay: Long): Int? =
+        checkDao.find(habitId, epochDay)?.status
+
     suspend fun getHabit(id: String): HabitEntity? = habitDao.byId(id)
 
     suspend fun allHabits(): List<HabitEntity> = habitDao.all()

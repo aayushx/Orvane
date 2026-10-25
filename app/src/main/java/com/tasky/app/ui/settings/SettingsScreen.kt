@@ -72,6 +72,10 @@ class SettingsViewModel @Inject constructor(
     fun setPomodoro(config: PomodoroConfig) {
         viewModelScope.launch { settings.setPomodoroConfig(config) }
     }
+
+    fun setNagCutoff(hour: Int, minute: Int) {
+        viewModelScope.launch { settings.setNagCutoffHourHour(hour, minute) }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -129,6 +133,28 @@ fun SettingsScreen(
                 SectionTitle("Notifications")
                 ToggleRow("Sounds", s.soundsEnabled) { vm.setSounds(it) }
                 ToggleRow("Vibration", s.vibrationEnabled) { vm.setVibration(it) }
+                HorizontalDivider(Modifier.padding(vertical = 10.dp))
+            }
+            item {
+                SectionTitle("Habits")
+                Text("Evening nag cutoff", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    "Unchecked habits are re-reminded at this time.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(
+                    Modifier.fillMaxWidth().padding(top = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    listOf(19, 20, 21, 22).forEach { hour ->
+                        FilterChip(
+                            selected = s.habitNagCutoffHour == hour,
+                            onClick = { vm.setNagCutoff(hour, 0) },
+                            label = { Text("%02d:00".format(hour)) },
+                        )
+                    }
+                }
                 HorizontalDivider(Modifier.padding(vertical = 10.dp))
             }
             item {
