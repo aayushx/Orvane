@@ -2,9 +2,9 @@ package com.tasky.app
 
 import android.content.Intent
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.fragment.app.FragmentActivity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,6 +43,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,11 +56,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.tasky.app.data.db.SmartList
+import com.tasky.app.data.settings.AppSettings
+import com.tasky.app.data.settings.SettingsRepository
 import com.tasky.app.ui.calendar.CalendarScreen
 import com.tasky.app.ui.drawer.DrawerContent
 import com.tasky.app.ui.focus.FocusScreen
 import com.tasky.app.ui.habits.HabitsScreen
+import com.tasky.app.ui.lock.LockOverlay
+import com.tasky.app.ui.onboarding.OnboardingScreen
 import com.tasky.app.ui.quickadd.QuickAddSheet
 import com.tasky.app.ui.quickadd.QuickAddViewModel
 import com.tasky.app.ui.search.SearchScreen
@@ -67,7 +75,16 @@ import com.tasky.app.ui.tasks.TaskDetailScreen
 import com.tasky.app.ui.tasks.TasksScreen
 import com.tasky.app.ui.tasks.TasksViewModel
 import com.tasky.app.ui.theme.TaskyTheme
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalContext
 import dagger.hilt.android.AndroidEntryPoint
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 enum class Tab(val title: String) {
@@ -79,12 +96,14 @@ enum class Tab(val title: String) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
 
     companion object {
         /** When launched with this extra, the app opens straight into quick add. */
         const val EXTRA_OPEN_QUICK_ADD = "com.tasky.app.extra.OPEN_QUICK_ADD"
     }
+
+    @Inject lateinit var settingsRepository: SettingsRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -113,9 +132,60 @@ object QuickAddBus {
     }
 }
 
+/** Exposes app-level settings to the activity shell (lock / onboarding gates). */
+@HiltViewModel
+class ShellViewModel @Inject constructor(
+    private val settingsRepo: SettingsRepository,
+) : ViewModel() {
+    val settings: StateFlow<AppSettings?> = settingsRepo.settings
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(4000), null)
+
+    suspend fun verifyPin(pin: String): Boolean = settingsRepo.pinMatches(pin)
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AppRoot(openQuickAddOnStart: Boolean) {
+    val shell: ShellViewModel = hiltViewModel()
+    val settings by shell.settings.collectAsState()
+    val s = settings
+
+    // ---- Lock gate: re-locks when the app comes back from the background. ----
+    val locked = remember { mutableStateOf(false) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var lockArmed by remember { mutableStateOf(false) }
+    DisposableEffect(lifecycleOwner, s?.appLockEnabled == true) {
+        val lockEnabled = s?.appLockEnabled == true && !s.pinHash.isNullOrBlank()
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_START && lockEnabled) {
+                locked.value = true
+                lockArmed = true
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    if (s != null && s.appLockEnabled && s.pinHash.isNotBlank() && !lockArmed) {
+        LaunchedEffect(Unit) { locked.value = true }
+    }
+
+    if (s == null) {
+        Surface(Modifier.fillMaxSize()) {}
+        return
+    }
+    if (!s.onboarded) {
+        OnboardingScreen(onDone = {})
+        return
+    }
+    if (locked.value) {
+        LockOverlay(
+            biometricEnabled = s.biometricEnabled,
+            verifyPin = { pin -> shell.verifyPin(pin) },
+            onUnlocked = { locked.value = false },
+        )
+        return
+    }
+
     val vm: TasksViewModel = hiltViewModel()
     val quickVm: QuickAddViewModel = hiltViewModel()
     val state by vm.state.collectAsState()
