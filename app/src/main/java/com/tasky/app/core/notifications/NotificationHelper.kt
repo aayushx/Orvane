@@ -27,7 +27,12 @@ object NotificationHelper {
     }
 
     fun post(context: Context, id: Int, notification: Notification) {
-        if (!canPost(context)) return
+        if (Build.VERSION.SDK_INT >= 33 &&
+            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
         val nm = NotificationManagerCompat.from(context)
         runCatching { nm.notify(id, notification) }
     }

@@ -2,7 +2,7 @@ package com.tasky.app.widgets
 
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -32,7 +32,6 @@ import androidx.glance.state.GlanceStateDefinition
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
-import androidx.glance.unit.ColorProvider
 import com.tasky.app.MainActivity
 import com.tasky.app.core.focus.PomodoroController
 import com.tasky.app.core.focus.PomodoroPhase
@@ -270,7 +269,7 @@ class StopPomodoroAction : ActionCallback {
     }
 }
 
-private val darkBg = ColorProvider(Color.argb(0xF2, 0x12, 0x13, 0x19))
-private val whiteFg = ColorProvider(Color.WHITE)
-private val accentFg = ColorProvider(Color.argb(0xFF, 0xB8, 0xC1, 0xFF))
-private val grayFg = ColorProvider(Color.argb(0xFF, 0x9A, 0x9A, 0xA4))
+private val darkBg = widgetColor(Color(0xF2121319))
+private val whiteFg = widgetColor(Color.White)
+private val accentFg = widgetColor(Color(0xFFB8C1FF))
+private val grayFg = widgetColor(Color(0xFF9A9AA4))

@@ -1,7 +1,7 @@
 package com.tasky.app.widgets
 
 import android.content.Context
-import android.graphics.Color
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -32,7 +32,6 @@ import androidx.glance.state.GlanceStateDefinition
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
-import androidx.glance.unit.ColorProvider
 import com.tasky.app.MainActivity
 import com.tasky.app.core.util.Time
 import com.tasky.app.data.repo.HabitRepository
@@ -68,8 +67,8 @@ class HabitCheckWidget : GlanceAppWidget() {
         habits: List<com.tasky.app.data.db.HabitEntity>,
         done: Map<String, Int>,
     ) {
-        val bg = ColorProvider(Color.argb(0xF2, 0x12, 0x13, 0x19))
-        val fg = ColorProvider(Color.WHITE)
+        val bg = widgetColor(Color(0xF2121319))
+        val fg = widgetColor(Color.White)
         Column(
             modifier = GlanceModifier.fillMaxSize().background(bg).padding(10.dp),
         ) {
@@ -82,7 +81,7 @@ class HabitCheckWidget : GlanceAppWidget() {
             if (habits.isEmpty()) {
                 Text(
                     "No habits yet",
-                    style = TextStyle(fontSize = 12.sp, color = ColorProvider(Color.argb(0xFF, 0xAA, 0xAA, 0xB4))),
+                    style = TextStyle(fontSize = 12.sp, color = widgetColor(Color(0xFFAAAAB4))),
                 )
             }
             for (habit in habits) {
@@ -100,7 +99,7 @@ class HabitCheckWidget : GlanceAppWidget() {
                         habit.name + (if (skipped) " (skipped)" else ""),
                         style = TextStyle(
                             fontSize = 13.sp,
-                            color = if (checked || skipped) ColorProvider(Color.argb(0xFF, 0x8a, 0x8a, 0x92)) else fg,
+                            color = if (checked || skipped) widgetColor(Color(0xFF8A8A92)) else fg,
                         ),
                         maxLines = 1,
                         modifier = GlanceModifier.defaultWeight().clickable(actionStartActivity<MainActivity>()),
@@ -110,11 +109,11 @@ class HabitCheckWidget : GlanceAppWidget() {
                             .width(34.dp)
                             .height(24.dp)
                             .background(
-                                ColorProvider(
+                                widgetColor(
                                     when {
-                                        checked -> 0xFF22B573.toInt()
-                                        skipped -> 0xFF546A7B.toInt()
-                                        else -> Color.argb(0xFF, 0x33, 0x38, 0x45)
+                                        checked -> Color(0xFF22B573)
+                                        skipped -> Color(0xFF546A7B)
+                                        else -> Color(0xFF333845)
                                     },
                                 ),
                             )
@@ -126,7 +125,7 @@ class HabitCheckWidget : GlanceAppWidget() {
                     ) {
                         Text(
                             if (checked) "✓" else if (skipped) "→" else "",
-                            style = TextStyle(fontSize = 14.sp, color = ColorProvider(Color.WHITE)),
+                            style = TextStyle(fontSize = 14.sp, color = widgetColor(Color.White)),
                             modifier = GlanceModifier.padding(3.dp),
                         )
                     }
