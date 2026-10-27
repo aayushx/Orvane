@@ -17,6 +17,7 @@ import com.tasky.app.data.repo.HabitRepository
 import com.tasky.app.data.repo.TaskRepository
 import com.tasky.app.data.settings.SettingsRepository
 import javax.inject.Inject
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -46,6 +47,8 @@ abstract class TaskyUiTest {
 @RunWith(AndroidJUnit4::class)
 class TaskCreateCompleteTest : TaskyUiTest() {
 
+    @Inject lateinit var tasks: TaskRepository
+
     @get:Rule(order = 1)
     val compose: ComposeTestRule = createAndroidComposeRule<MainActivity>()
 
@@ -53,13 +56,18 @@ class TaskCreateCompleteTest : TaskyUiTest() {
     fun createTaskThenCompleteIt() {
         compose.waitForIdle()
         compose.onNodeWithContentDescription("Quick add").performClick()
-        compose.onNodeWithTag("quick_add_input").performTextInput("Buy milk")
+        compose.onNodeWithTag("quick_add_input").performTextInput("Buy milk today")
         compose.onNodeWithText("Add task").performClick()
         compose.waitForIdle()
         compose.onNodeWithText("Buy milk").assertExists()
         compose.onNodeWithContentDescription("Mark done").performClick()
         compose.waitForIdle()
-        compose.onNodeWithContentDescription("Completed, mark not done").assertExists()
+        // Completed tasks leave the Today view by design; verify the completion state directly.
+        compose.waitForIdle()
+        compose.runOnUiThread {
+            val completed = runBlocking { tasks.observeCompleted().first() }
+            assertTrue("Task should be completed", completed.any { it.title == "Buy milk" })
+        }
     }
 }
 

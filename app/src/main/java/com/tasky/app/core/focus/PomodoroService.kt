@@ -85,6 +85,9 @@ class PomodoroService : Service() {
     }
 
     private fun startForegroundCompat() {
+        // The fg notification must have an existing channel; create channels idempotently
+        // in case Application.onCreate did not run (e.g. instrumentation).
+        TaskyNotifications.ensureChannels(applicationContext)
         val notification = buildNotification(null)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)

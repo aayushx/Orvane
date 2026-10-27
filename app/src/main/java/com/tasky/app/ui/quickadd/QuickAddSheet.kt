@@ -72,7 +72,6 @@ fun QuickAddSheet(
     }
 
     val focusRequester = remember { FocusRequester() }
-    LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
@@ -121,6 +120,10 @@ fun QuickAddSheet(
                     }
                 },
             )
+            // ModalBottomSheet content lives in a separate dialog window that attaches
+            // after the caller composes; this effect only runs once this content is
+            // actually in the tree, so the focus target exists by then.
+            LaunchedEffect(Unit) { focusRequester.requestFocus() }
             Spacer(Modifier.height(10.dp))
             ParsePreviewRow(parsed)
             Spacer(Modifier.height(10.dp))
