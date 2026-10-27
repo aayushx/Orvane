@@ -1,5 +1,7 @@
 package com.tasky.app
 
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.compose.setContent
@@ -106,6 +108,9 @@ class MainActivity : FragmentActivity() {
     @Inject lateinit var settingsRepository: SettingsRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Manifest declares Theme.Tasky.Splash; installSplashScreen() applies
+        // postSplashScreenTheme (Theme.Tasky) and dismisses the splash view.
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val quickAdd = intent?.getBooleanExtra(EXTRA_OPEN_QUICK_ADD, false) == true

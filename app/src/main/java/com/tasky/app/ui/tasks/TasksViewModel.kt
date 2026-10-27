@@ -150,7 +150,9 @@ class TasksViewModel @Inject constructor(
                 base.copy(sections = if (list.isEmpty()) emptyList() else listOf(TaskSection("Inbox", list)))
             }
             SmartList.COMPLETED -> base.copy(
-                sections = listOf(TaskSection("Completed", sortList(snap.completed) { _, _ -> true })),
+                // The screen renders `completed` rows (with its own "Completed" header)
+                // via showCompletedAtBottom; don't also emit a duplicate section.
+                sections = emptyList(),
                 completed = snap.completed,
             )
             SmartList.TRASH -> {
