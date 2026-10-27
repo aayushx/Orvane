@@ -117,4 +117,4 @@ app lock and offline behavior.
 
 ## License
 
-Internal/personal project — no license file yet; add one before distributing.
+Internal/personal project — no license file yet;
