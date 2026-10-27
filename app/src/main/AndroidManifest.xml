@@ -13,14 +13,14 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
-        android:name=".TaskyApp"
+        android:name=".OrvaneApp"
         android:allowBackup="true"
         android:enableOnBackInvokedCallback="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Tasky.Splash">
+        android:theme="@style/Theme.Orvane.Splash">
 
         <activity
             android:name=".MainActivity"
@@ -67,7 +67,7 @@
         <receiver
             android:name=".widgets.TodayWidgetReceiver"
             android:exported="false"
-            android:label="Tasky Today">
+            android:label="Orvane Today">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -79,7 +79,7 @@
         <receiver
             android:name=".widgets.HabitCheckWidgetReceiver"
             android:exported="false"
-            android:label="Tasky Habits">
+            android:label="Orvane Habits">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -91,7 +91,7 @@
         <receiver
             android:name=".widgets.PomodoroMiniWidgetReceiver"
             android:exported="false"
-            android:label="Tasky Pomodoro">
+            android:label="Orvane Pomodoro">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -103,7 +103,7 @@
         <receiver
             android:name=".widgets.QuickAddWidgetReceiver"
             android:exported="false"
-            android:label="Tasky Quick Add">
+            android:label="Orvane Quick Add">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -112,7 +112,7 @@
                 android:resource="@xml/quickadd_widget_info" />
         </receiver>
 
-        <!-- WorkManager on-demand initialization (HiltWorkerFactory is configured in TaskyApp). -->
+        <!-- WorkManager on-demand initialization (HiltWorkerFactory is configured in OrvaneApp). -->
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="${applicationId}.androidx-startup"

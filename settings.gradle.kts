@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Tasky"
+rootProject.name = "Orvane"
 include(":app")

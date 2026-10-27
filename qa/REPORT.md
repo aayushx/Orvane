@@ -1,5 +1,10 @@
 # Tasky — On-Device QA Report
 
+> **N.B. (2026-10-28):** after this sweep the app was renamed **Orvane** — applicationId `com.tasky.app` ->
+> `com.orvane.app` (full package rename, R-package, tests, DB/datastore/work names), visible name, widget
+> labels, notifications and in-app copy rebranded; legacy `"app": "Tasky"` marker backups still restore.
+> The evidence and findings below predate the rename.
+
 **Date:** 2026-10-27 (session ended 2026-10-28 IST) · **Build:** debug APK `app/build/outputs/apk/debug/app-debug.apk` (29,404,523 B)
 **Device:** Google Pixel 10 `57311FDCR0063F`, Android 17 (SDK 37), 1080×2424, dark theme, gesture nav, IST (UTC+5:30)
 **Scope:** ~35 interactive acceptance scenarios driven via adb/uiautomator with screenshots in `qa/`. All data operations verified against Room DB state, datastore files, dumpsys, and logcat — not just pixels.

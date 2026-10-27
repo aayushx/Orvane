@@ -8,17 +8,17 @@ plugins {
 }
 
 android {
-    namespace = "com.tasky.app"
+    namespace = "com.orvane.app"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.tasky.app"
+        applicationId = "com.orvane.app"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
         versionName = "1.0.0"
 
-        testInstrumentationRunner = "com.tasky.app.TaskyTestRunner"
+        testInstrumentationRunner = "com.orvane.app.OrvaneTestRunner"
         vectorDrawables {
             useSupportLibrary = true
         }
