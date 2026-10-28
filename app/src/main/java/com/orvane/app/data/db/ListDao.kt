@@ -38,6 +38,10 @@ interface ListDao {
     @Query("UPDATE lists SET collapsed = :collapsed WHERE id = :id")
     suspend fun setCollapsed(id: String, collapsed: Boolean)
 
+    /** Folder deleted: member lists become top-level. */
+    @Query("UPDATE lists SET groupId = NULL WHERE groupId = :folderId")
+    suspend fun clearFolderMembership(folderId: String)
+
     @Query("SELECT MAX(sortOrder) FROM lists")
     suspend fun maxSortOrder(): Int?
 }
@@ -91,6 +95,14 @@ interface TagDao {
 
     @Query("DELETE FROM tags WHERE id = :id")
     suspend fun deleteById(id: String)
+
+    /**
+     * Tag merge: re-point every task reference of tag [from] onto tag [to].
+     * INSERT OR IGNORE keeps the (taskId, tagId) PK intact when a task already
+     * carries both tags.
+     */
+    @Query("INSERT OR IGNORE INTO task_tags (taskId, tagId) SELECT taskId, :to FROM task_tags WHERE tagId = :from")
+    suspend fun moveRefs(from: String, to: String)
 
     @Query("DELETE FROM task_tags WHERE tagId = :tagId")
     suspend fun clearRefs(tagId: String)

@@ -12,6 +12,21 @@ object TaskPriority {
     const val HIGH = 3
 }
 
+/** Color palette for the list (and habit) color pickers. */
+object StarterColors {
+    /** Raw ARGB ints by design: colors are persisted as Int on entities (data, not theme tokens). */
+    val LIST_COLORS: List<Int> = listOf(
+        0xFF4A5FDB.toInt(), // indigo (default)
+        0xFF0B7285.toInt(), // teal
+        0xFF2B8A3E.toInt(), // green
+        0xFFB02E0C.toInt(), // rust
+        0xFFB0257A.toInt(), // magenta
+        0xFF7A5466.toInt(), // mauve
+        0xFF846400.toInt(), // olive
+        0xFF525252.toInt(), // graphite
+    )
+}
+
 /** Trash retention policy. */
 object TaskTrash {
     const val RETENTION_DAYS = 30L

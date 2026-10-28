@@ -586,7 +586,7 @@ class TaskRepository @Inject constructor(
     }
 
     suspend fun deleteList(id: String) {
-        taskDao.setListIds(taskDao.activeInListOnce(id).map { it.id }, null, System.currentTimeMillis())
+        taskDao.clearListId(id, System.currentTimeMillis())
         listDao.deleteById(id)
         OrvaneWidgets.refreshAll(appContext)
     }
@@ -605,6 +605,8 @@ class TaskRepository @Inject constructor(
     }
 
     suspend fun deleteFolder(id: String) {
+        // Member lists become top-level (QA item A8 semantics).
+        listDao.clearFolderMembership(id)
         folderDao.delete(id)
     }
 
@@ -636,8 +638,28 @@ class TaskRepository @Inject constructor(
         tagDao.removeRef(taskId, tagId)
     }
 
+    /**
+     * Renames a tag. If another tag already carries the name (case-insensitive)
+     * the rename becomes a MERGE: refs of [tagId] move onto the existing tag
+     * and the duplicate is removed (QA item A8 semantics).
+     */
     suspend fun renameTag(tagId: String, name: String) {
-        tagDao.byId(tagId)?.let { tagDao.upsert(it.copy(name = name.trim())) }
+        val clean = name.trim().removePrefix("#")
+        if (clean.isEmpty()) return
+        val existing = tagDao.byName(clean)
+        if (existing != null && existing.id != tagId) {
+            mergeTagInto(fromId = tagId, targetId = existing.id)
+        } else {
+            tagDao.byId(tagId)?.let { tagDao.upsert(it.copy(name = clean)) }
+        }
+    }
+
+    /** Moves refs from tag [fromId] onto [targetId], then deletes the source. */
+    suspend fun mergeTagInto(fromId: String, targetId: String) {
+        if (fromId == targetId) return
+        tagDao.moveRefs(fromId, targetId)
+        tagDao.clearRefs(fromId)
+        tagDao.deleteById(fromId)
     }
 
     suspend fun deleteTag(tagId: String) {

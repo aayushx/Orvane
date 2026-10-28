@@ -165,6 +165,10 @@ interface TaskDao {
     @Query("UPDATE tasks SET sortOrder = :sortOrder, modifiedAt = :modifiedAt WHERE id = :id")
     suspend fun setSortOrder(id: String, sortOrder: Int, modifiedAt: Long)
 
+    /** List deleted: its tasks fall back to Inbox (null listId). */
+    @Query("UPDATE tasks SET listId = NULL, modifiedAt = :modifiedAt WHERE listId = :listId")
+    suspend fun clearListId(listId: String, modifiedAt: Long)
+
     @Query("UPDATE tasks SET focusSeconds = focusSeconds + :delta WHERE id = :id")
     suspend fun addFocusSeconds(id: String?, delta: Long)
 
