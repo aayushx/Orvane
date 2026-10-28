@@ -2,7 +2,6 @@ package com.orvane.app.widgets
 
 import android.content.Context
 import android.content.Intent
-import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -37,6 +36,10 @@ import com.orvane.app.core.focus.PomodoroController
 import com.orvane.app.core.focus.PomodoroPhase
 import com.orvane.app.core.focus.PomodoroService
 import com.orvane.app.data.settings.SettingsRepository
+import com.orvane.app.ui.theme.WidgetAccent
+import com.orvane.app.ui.theme.WidgetGrayFg
+import com.orvane.app.ui.theme.WidgetOnSurface
+import com.orvane.app.ui.theme.WidgetSurface
 import dagger.hilt.EntryPoint
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.InstallIn
@@ -269,7 +272,7 @@ class StopPomodoroAction : ActionCallback {
     }
 }
 
-private val darkBg = widgetColor(Color(0xF2121319))
-private val whiteFg = widgetColor(Color.White)
-private val accentFg = widgetColor(Color(0xFFB8C1FF))
-private val grayFg = widgetColor(Color(0xFF9A9AA4))
+private val darkBg = widgetColor(WidgetSurface)
+private val whiteFg = widgetColor(WidgetOnSurface)
+private val accentFg = widgetColor(WidgetAccent)
+private val grayFg = widgetColor(WidgetGrayFg)

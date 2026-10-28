@@ -37,13 +37,7 @@ import com.orvane.app.core.util.Time
 import com.orvane.app.data.db.TaskEntity
 import com.orvane.app.data.db.TaskPriority
 import com.orvane.app.ui.common.Format
-
-fun priorityColor(priority: Int): Color = when (priority) {
-    TaskPriority.HIGH -> Color(0xFFE53935)
-    TaskPriority.MEDIUM -> Color(0xFFF6A623)
-    TaskPriority.LOW -> Color(0xFF4CA6E8)
-    else -> Color.Transparent
-}
+import com.orvane.app.ui.theme.priorityColor
 
 /** One task row: check circle, title, and meta chips (due, repeat, list, subtask progress). */
 @OptIn(ExperimentalFoundationApi::class)

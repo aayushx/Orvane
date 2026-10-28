@@ -1,7 +1,6 @@
 package com.orvane.app.widgets
 
 import android.content.Context
-import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -37,6 +36,12 @@ import com.orvane.app.data.db.SmartList
 import com.orvane.app.data.db.TaskEntity
 import com.orvane.app.data.repo.SortKeys
 import com.orvane.app.data.repo.TaskRepository
+import com.orvane.app.ui.theme.WidgetAccent
+import com.orvane.app.ui.theme.WidgetMutedFg
+import com.orvane.app.ui.theme.WidgetOnSurface
+import com.orvane.app.ui.theme.WidgetRowBg
+import com.orvane.app.ui.theme.WidgetSurface
+import com.orvane.app.ui.theme.WidgetTextSecondary
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.runBlocking
 
@@ -59,8 +64,8 @@ class TodayWidget : GlanceAppWidget() {
 
     @Composable
     private fun TodayContent(tasks: List<TaskEntity>) {
-        val bg = widgetColor(Color(0xF2121319))
-        val fg = widgetColor(Color.White)
+        val bg = widgetColor(WidgetSurface)
+        val fg = widgetColor(WidgetOnSurface)
         Column(
             modifier = GlanceModifier.fillMaxSize().background(bg).padding(10.dp),
         ) {
@@ -72,14 +77,14 @@ class TodayWidget : GlanceAppWidget() {
                 )
                 Text(
                     "${tasks.size}",
-                    style = TextStyle(fontSize = 12.sp, color = widgetColor(Color(0xFFB8C1FF))),
+                    style = TextStyle(fontSize = 12.sp, color = widgetColor(WidgetAccent)),
                 )
             }
             Spacer(modifier = GlanceModifier.height(6.dp))
             if (tasks.isEmpty()) {
                 Text(
                     "Nothing due today — enjoy!",
-                    style = TextStyle(fontSize = 12.sp, color = widgetColor(Color(0xFFAAAAB4))),
+                    style = TextStyle(fontSize = 12.sp, color = widgetColor(WidgetTextSecondary)),
                 )
             }
             for (task in tasks) {
@@ -91,7 +96,7 @@ class TodayWidget : GlanceAppWidget() {
                         modifier = GlanceModifier
                             .width(22.dp)
                             .height(22.dp)
-                            .background(widgetColor(Color(0xFF333845)))
+                            .background(widgetColor(WidgetRowBg))
                             .clickable(
                                 actionRunCallback<ToggleTaskAction>(
                                     actionParametersOf(ToggleTaskAction.TASK_ID to task.id),
@@ -109,7 +114,7 @@ class TodayWidget : GlanceAppWidget() {
                         task.title,
                         style = TextStyle(
                             fontSize = 13.sp,
-                            color = if (task.completedAt != null) widgetColor(Color(0xFF8A8A92)) else fg,
+                            color = if (task.completedAt != null) widgetColor(WidgetMutedFg) else fg,
                         ),
                         maxLines = 1,
                         modifier = GlanceModifier.defaultWeight().clickable(actionStartActivity<MainActivity>()),
