@@ -3,7 +3,6 @@ package com.orvane.app.ui.calendar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -883,6 +882,7 @@ private fun EventEditorDialog(
     var title by rememberSaveable { mutableStateOf("") }
     var allDay by rememberSaveable { mutableStateOf(false) }
     var startHour by rememberSaveable { mutableStateOf(initialHour) }
+    var startMinute by rememberSaveable { mutableStateOf(0) }
     var durationHours by rememberSaveable { mutableStateOf(1) }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -894,7 +894,7 @@ private fun EventEditorDialog(
                         val s = Time.startOfDayEpoch(day)
                         onSave(title, true, s, s + MILLIS_DAY)
                     } else {
-                        val s = Time.at(day, startHour, 0)
+                        val s = Time.at(day, startHour, startMinute)
                         onSave(title, false, s, s + durationHours * MILLIS_HOUR)
                     }
                     onDismiss()
@@ -924,18 +924,15 @@ private fun EventEditorDialog(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(4.dp))
-                    Row(
-                        Modifier.horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        for (hour in listOf(7, 8, 9, 10, 11, 13, 14, 15, 16, 18, 19)) {
-                            FilterChip(
-                                selected = startHour == hour,
-                                onClick = { startHour = hour },
-                                label = { Text("$hour:00") },
-                            )
-                        }
-                    }
+                    com.orvane.app.ui.common.CustomTimeChipRow(
+                        presetHours = listOf(7, 8, 9, 10, 11, 13, 14, 15, 16, 18, 19),
+                        currentHour = startHour,
+                        currentMinute = startMinute,
+                        onSelect = { h, m ->
+                            startHour = h
+                            startMinute = m
+                        },
+                    )
                     Spacer(Modifier.height(4.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         FilterChip(selected = durationHours == 1, onClick = { durationHours = 1 }, label = { Text("1 h") })
