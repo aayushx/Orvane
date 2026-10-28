@@ -37,4 +37,20 @@ class PomodoroControllerTest {
         assertEquals(12, PomodoroController.nextBreakPhase(3, cfg).second)
         assertEquals(12, PomodoroController.nextBreakPhase(6, cfg).second)
     }
+
+    @Test
+    fun focusPhaseSizesSessionFromConfiguredLength() {
+        val now = 1_000_000L
+        val state = PomodoroController.focusPhase(
+            PomodoroConfig(focusMinutes = 50, cyclesBeforeLongBreak = 4),
+            taskId = "t1",
+            stopwatch = false,
+            nowMillis = now,
+        )
+        assertEquals(PomodoroPhase.FOCUS, state.phase)
+        assertEquals(50 * 60L, state.durationSeconds)
+        assertEquals(50 * 60L, state.remainingSeconds)
+        assertEquals(now + 50 * 60_000L, state.endAtMillis)
+        assertEquals("t1", state.taskId)
+    }
 }

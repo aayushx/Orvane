@@ -73,17 +73,15 @@ class PomodoroController @Inject constructor(
         taskId: String?,
         stopwatch: Boolean,
     ) {
-        _state.value = PomodoroState(
-            phase = PomodoroPhase.FOCUS,
-            paused = false,
-            endAtMillis = System.currentTimeMillis() + focusMinutes * 60_000L,
-            durationSeconds = focusMinutes * 60L,
-            remainingSeconds = focusMinutes * 60L,
-            taskId = taskId,
-            sessionStartedAt = System.currentTimeMillis(),
-            elapsedSeconds = 0,
-            cyclesCompleted = 0,
-            stopwatch = stopwatch,
+        _state.value = focusPhase(
+            com.orvane.app.data.settings.PomodoroConfig(
+                focusMinutes = focusMinutes,
+                shortBreakMinutes = shortBreakMinutes,
+                longBreakMinutes = longBreakMinutes,
+                cyclesBeforeLongBreak = cyclesBeforeLong,
+            ),
+            taskId,
+            stopwatch,
         )
     }
 
@@ -186,6 +184,29 @@ class PomodoroController @Inject constructor(
         taskId?.let { taskRepository.getById(it)?.title }
 
     companion object {
+        /**
+         * The initial FOCUS state for a session of the configured length,
+         * sized from `cfg.focusMinutes` — pure (clock injected) so tests can
+         * pin that the timer honors persisted lengths (Round 2 / B2).
+         */
+        fun focusPhase(
+            cfg: com.orvane.app.data.settings.PomodoroConfig,
+            taskId: String?,
+            stopwatch: Boolean,
+            nowMillis: Long = System.currentTimeMillis(),
+        ): PomodoroState = PomodoroState(
+            phase = PomodoroPhase.FOCUS,
+            paused = false,
+            endAtMillis = nowMillis + cfg.focusMinutes * 60_000L,
+            durationSeconds = cfg.focusMinutes * 60L,
+            remainingSeconds = cfg.focusMinutes * 60L,
+            taskId = taskId,
+            sessionStartedAt = nowMillis,
+            elapsedSeconds = 0,
+            cyclesCompleted = 0,
+            stopwatch = stopwatch,
+        )
+
         /**
          * Which break follows the Nth completed focus cycle and how long it
          * runs — pure so tests can pin the cycle math (Round 2 / B2).

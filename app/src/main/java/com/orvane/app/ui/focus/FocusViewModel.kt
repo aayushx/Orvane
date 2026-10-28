@@ -36,9 +36,6 @@ import kotlinx.coroutines.withContext
 /** White-noise loops bundled in assets/whitenoise. */
 val NOISES = listOf("brown", "rain", "waves", "forest", "cafe")
 
-/** Shared bound for pomodoro in-sheet steppers (minutes). */
-const val POMO_MIN_MINUTES = 1
-
 data class FocusStatsState(
     val todaySeconds: Long = 0,
     val weekSeconds: Long = 0,
@@ -202,14 +199,31 @@ class FocusViewModel @Inject constructor(
     fun nudgePomodoro(field: Int, delta: Int) {
         viewModelScope.launch {
             val cfg = settingsRepo.current().pomodoro
-            val next = when (field) {
-                0 -> cfg.copy(focusMinutes = (cfg.focusMinutes + delta).coerceIn(POMO_MIN_MINUTES, 180))
-                1 -> cfg.copy(shortBreakMinutes = (cfg.shortBreakMinutes + delta).coerceIn(POMO_MIN_MINUTES, 30))
-                2 -> cfg.copy(longBreakMinutes = (cfg.longBreakMinutes + delta).coerceIn(POMO_MIN_MINUTES, 60))
-                else -> cfg.copy(cyclesBeforeLongBreak = (cfg.cyclesBeforeLongBreak + delta).coerceIn(1, 12))
-            }
+            val next = boundedConfig(cfg, field, delta)
             settingsRepo.setPomodoroConfig(next)
         }
+    }
+
+    companion object {
+        /** Spec'd stepper bounds (B2): focus 5–90, short 1–30, long 5–60, rounds 2–8. */
+        val FOCUS_RANGE = 5..90
+        val SHORT_BREAK_RANGE = 1..30
+        val LONG_BREAK_RANGE = 5..60
+        val CYCLES_RANGE = 2..8
+
+        /**
+         * Applies a stepper delta to one pomodoro field and clamps to its
+         * spec'd range — pure so unit tests can pin the bounds.
+         *
+         * @param field 0 focus · 1 short break · 2 long break · 3 cycles
+         */
+        fun boundedConfig(cfg: com.orvane.app.data.settings.PomodoroConfig, field: Int, delta: Int): com.orvane.app.data.settings.PomodoroConfig =
+            when (field) {
+                0 -> cfg.copy(focusMinutes = (cfg.focusMinutes + delta).coerceIn(FOCUS_RANGE))
+                1 -> cfg.copy(shortBreakMinutes = (cfg.shortBreakMinutes + delta).coerceIn(SHORT_BREAK_RANGE))
+                2 -> cfg.copy(longBreakMinutes = (cfg.longBreakMinutes + delta).coerceIn(LONG_BREAK_RANGE))
+                else -> cfg.copy(cyclesBeforeLongBreak = (cfg.cyclesBeforeLongBreak + delta).coerceIn(CYCLES_RANGE))
+            }
     }
 
     fun startPomodoro() {

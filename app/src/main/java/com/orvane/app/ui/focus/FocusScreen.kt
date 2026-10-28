@@ -419,7 +419,7 @@ fun PomodoroLengthSteppers(
             Stepper(label = "× before", value = cycles, step = 1, onDelta = { vm.nudgePomodoro(3, it) })
         }
         Text(
-            "Next session runs with these lengths",
+            "${configMinutes.first} min focus · ${configMinutes.second} min break · long break every $cycles",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
