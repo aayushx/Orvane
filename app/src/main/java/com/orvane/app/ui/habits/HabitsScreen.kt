@@ -2,6 +2,7 @@ package com.orvane.app.ui.habits
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -24,9 +26,15 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Unarchive
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -41,16 +49,21 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -60,6 +73,8 @@ import com.orvane.app.core.streak.StreakCalculator
 import com.orvane.app.data.db.CheckStatus
 import com.orvane.app.data.db.HabitEntity
 import com.orvane.app.data.db.HabitFreqType
+import com.orvane.app.ui.common.StatChip
+import com.orvane.app.ui.theme.orvaneTokens
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.TextStyle
@@ -102,6 +117,11 @@ fun HabitsScreen(vm: HabitsViewModel = hiltViewModel()) {
                 items(state.rows, key = { it.habit.id }) { row ->
                     HabitCard(
                         row = row,
+                        nagCutoff = if (row.habit.nagEnabled) {
+                            "%02d:%02d".format(state.nagCutoffHour, state.nagCutoffMinute)
+                        } else {
+                            null
+                        },
                         onCheck = { vm.toggleCheck(row.habit) },
                         onSkip = { vm.toggleSkip(row.habit) },
                         onEdit = { editingId = row.habit.id; editorOpen = true },
@@ -176,13 +196,21 @@ fun HabitsScreen(vm: HabitsViewModel = hiltViewModel()) {
 
 @Composable
 private fun Dashboard(state: HabitsUiState) {
+    val tokens = orvaneTokens()
     Card(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
+            .padding(
+                horizontal = tokens.spacing.lg,
+                vertical = tokens.spacing.sm,
+            ),
+        shape = RoundedCornerShape(tokens.corners.card),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
     ) {
-        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.padding(tokens.spacing.lg),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             CircularProgressIndicator(
                 progress = { state.dashboardPercent / 100f },
                 modifier = Modifier.size(52.dp),
@@ -192,10 +220,10 @@ private fun Dashboard(state: HabitsUiState) {
             Spacer(Modifier.width(14.dp))
             Column {
                 Text(
-                    if (state.scheduledTodayCount == 0) {
+                    if (state.rows.isEmpty() || state.scheduledTodayCount == 0) {
                         "No habits scheduled today"
                     } else {
-                        "${state.doneToday}/${state.scheduledTodayCount} done today"
+                        "${state.rows.size} habits · ${state.doneToday} done today"
                     },
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -233,6 +261,7 @@ private fun EmptyHabits() {
 @Composable
 private fun HabitCard(
     row: HabitRow,
+    nagCutoff: String? = null,
     onCheck: () -> Unit,
     onSkip: () -> Unit,
     onEdit: () -> Unit,
@@ -240,31 +269,66 @@ private fun HabitCard(
 ) {
     val habit = row.habit
     var expanded by rememberSaveable { mutableStateOf(false) }
+    val tokens = orvaneTokens()
     Column(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .padding(horizontal = tokens.spacing.lg, vertical = tokens.spacing.xs)
+            .clip(RoundedCornerShape(tokens.corners.card))
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
             .clickable { expanded = !expanded }
-            .padding(12.dp),
+            .padding(tokens.spacing.md),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(habit.emoji, style = MaterialTheme.typography.titleLarge)
-            Spacer(Modifier.width(10.dp))
+            // Icon (emoji) in a tinted circle of the habit's own color.
+            Box(
+                Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(Color(habit.color).copy(alpha = 0.16f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(habit.emoji, style = MaterialTheme.typography.titleLarge)
+            }
+            Spacer(Modifier.width(tokens.spacing.md))
             Column(Modifier.weight(1f)) {
                 Text(
                     habit.name,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(
-                    freqLabel(habit) +
-                        if (row.stats.currentStreak > 0) " · ${row.stats.currentStreak} day streak" else "",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                when {
+                    row.stats.currentStreak > 0 -> Text(
+                        "🔥 ${row.stats.currentStreak}-day streak",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = androidx.compose.ui.graphics.lerp(
+                            Color(habit.color),
+                            MaterialTheme.colorScheme.onSurface,
+                            0.2f,
+                        ),
+                    )
+                    else -> Text(
+                        freqLabel(habit),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (nagCutoff != null) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.Notifications,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(12.dp),
+                        )
+                        Text(
+                            " Reminds until $nagCutoff",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
             if (row.skippedToday) {
                 // Skipped needs a text affordance, not a color-only state (QA).
@@ -305,27 +369,8 @@ private fun HabitCard(
                     )
                 }
             }
-            Spacer(Modifier.width(8.dp))
-            Box(
-                Modifier
-                    .size(34.dp)
-                    .clip(CircleShape)
-                    .background(if (row.checkedToday) Color(habit.color) else Color.Transparent)
-                    .border(
-                        width = 2.dp,
-                        color = if (row.checkedToday) Color(habit.color) else MaterialTheme.colorScheme.outline,
-                        shape = CircleShape,
-                    )
-                    .clickable { onCheck() }
-                    .semantics {
-                        contentDescription = if (row.checkedToday) "Done today, tap to undo" else "Mark habit done"
-                    },
-                contentAlignment = Alignment.Center,
-            ) {
-                if (row.checkedToday) {
-                    Text("✓", color = Color.White, style = MaterialTheme.typography.titleMedium)
-                }
-            }
+            Spacer(Modifier.width(tokens.spacing.sm))
+            HabitCheckButton(row.checkedToday, habit.color, onCheck)
             Spacer(Modifier.width(6.dp))
             IconButton(onClick = onEdit, modifier = Modifier.size(26.dp)) {
                 Icon(Icons.Default.Edit, contentDescription = "Edit habit", modifier = Modifier.size(14.dp))
@@ -345,18 +390,24 @@ private fun HabitCard(
 
 @Composable
 private fun HabitStats(row: HabitRow) {
-    val habit = row.habit
-    val stats = row.stats
+    val tokens = orvaneTokens()
     Column {
         Row(Modifier.fillMaxWidth()) {
-            StatCell("Last 7 days", windowPercent(stats.checkedLast7, row.scheduled7), Modifier.weight(1f))
-            StatCell("Last 30 days", windowPercent(stats.checkedLast30, row.scheduled30), Modifier.weight(1f))
-            StatCell("Last 90 days", windowPercent(stats.checkedLast90, row.scheduled90), Modifier.weight(1f))
-        }
-        Spacer(Modifier.height(6.dp))
-        Row(Modifier.fillMaxWidth()) {
-            StatCell("Best streak", "${stats.longestStreak} d", Modifier.weight(1f))
-            StatCell("All time", "${stats.totalChecked} done · ${stats.totalSkipped} skipped", Modifier.weight(1f))
+            StatChip(
+                value = windowPercent(checked = row.stats.checkedLast30, scheduled = row.scheduled30),
+                label = "30-day rate",
+                modifier = Modifier.weight(1f),
+            )
+            StatChip(
+                value = "${row.stats.longestStreak} d",
+                label = "Best streak",
+                modifier = Modifier.weight(1f),
+            )
+            StatChip(
+                value = "${row.stats.totalChecked}",
+                label = "Completions",
+                modifier = Modifier.weight(1f),
+            )
         }
         Spacer(Modifier.height(10.dp))
         Text(
@@ -368,12 +419,12 @@ private fun HabitStats(row: HabitRow) {
         Heatmap(row)
         Spacer(Modifier.height(10.dp))
         Text(
-            "Recent weeks",
+            "This week",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(4.dp))
-        WeekBars(row)
+        WeekdayBars(row)
     }
 }
 
@@ -460,59 +511,186 @@ private fun Heatmap(row: HabitRow) {
     }
 }
 
-/** Bars for the last 6 weeks: fraction of scheduled check-ins completed. */
+/**
+ * Weekday bars: seven equal columns so every bar sits EXACTLY over its weekday
+ * label (the Round-1 QA misalignment came from centering narrow bars inside
+ * wide columns). Today renders full-opacity in the habit color, other days at
+ * 60%; a tap selects the day and prints its detail line (Round 2 / C2).
+ */
 @Composable
-private fun WeekBars(row: HabitRow) {
+private fun WeekdayBars(row: HabitRow) {
     val habit = row.habit
     val today = LocalDate.now()
     val monday = today.minusDays((today.dayOfWeek.value - 1).toLong())
-    val weeks = (5 downTo 0).map { i ->
-        val start = monday.minusWeeks(i.toLong())
-        val done = (0 until 7).count { d ->
-            val day = start.plusDays(d.toLong())
-            !day.isAfter(today) && row.dayStatus[day.toEpochDay()] == CheckStatus.CHECKED
-        }
-        val scheduled = (0 until 7).count { d ->
-            val day = start.plusDays(d.toLong())
-            !day.isAfter(today) && StreakCalculator.isScheduledDay(habit, day)
-        }
-        Triple(start, done, scheduled)
-    }
-    Row(
-        Modifier.fillMaxWidth().height(80.dp),
-        verticalAlignment = Alignment.Bottom,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        for ((start, done, scheduled) in weeks) {
-            Column(
-                Modifier.weight(1f),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
+    var selected by rememberSaveable { mutableStateOf<Long?>(null) }
+    Column {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .height(72.dp),
+            verticalAlignment = Alignment.Bottom,
+        ) {
+            for (i in 0 until 7) {
+                val day = monday.plusDays(i.toLong())
+                val future = day.isAfter(today)
+                val checked = row.dayStatus[day.toEpochDay()] == CheckStatus.CHECKED
+                val skipped = row.dayStatus[day.toEpochDay()] == CheckStatus.SKIPPED
+                val scheduled = !future && StreakCalculator.isScheduledDay(habit, day)
+                val fraction = when {
+                    checked -> 1f
+                    skipped -> 0.45f
+                    scheduled -> 0.25f
+                    else -> 0.12f
+                }
+                val baseColor = when {
+                    checked || skipped -> Color(habit.color)
+                    else -> MaterialTheme.colorScheme.surfaceVariant
+                }
+                val alpha = when {
+                    day == today && !checked -> 0.95f
+                    day == today -> 1f
+                    selected == day.toEpochDay() -> 1f
+                    else -> 0.6f
+                }
                 Box(
                     Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
+                        .weight(1f)
+                        .fillMaxHeight(),
                     contentAlignment = Alignment.BottomCenter,
                 ) {
                     Box(
                         Modifier
-                            .fillMaxWidth(0.6f)
-                            .height(
-                                if (scheduled <= 0) 4.dp
-                                else (52.dp * (done / scheduled.toFloat())).coerceAtLeast(4.dp),
-                            )
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(
-                                if (scheduled > 0) Color(habit.color) else MaterialTheme.colorScheme.surfaceVariant,
-                            ),
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(baseColor.copy(alpha = alpha))
+                            .fillMaxWidth(0.62f)
+                            .fillMaxHeight(fraction)
+                            .clickable(enabled = !future) {
+                                selected = if (selected == day.toEpochDay()) null else day.toEpochDay()
+                            }
+                            .semantics {
+                                contentDescription =
+                                    day.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.ENGLISH) +
+                                        when {
+                                            checked -> ", done"
+                                            skipped -> ", skipped"
+                                            scheduled -> ", not done"
+                                            else -> ", no habit scheduled"
+                                        }
+                            },
                     )
                 }
+            }
+        }
+        // Weekday labels: same weighted row, same weight — exact alignment.
+        Row(Modifier.fillMaxWidth()) {
+            for (i in 0 until 7) {
+                val day = monday.plusDays(i.toLong())
                 Text(
-                    "${start.monthValue}/${start.dayOfMonth}",
+                    DOW_LABELS[i],
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (day == today) MaterialTheme.colorScheme.onSurface
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 )
             }
+        }
+        selected?.let { epochDay ->
+            val day = LocalDate.ofEpochDay(epochDay)
+            val status = when {
+                day.isAfter(today) -> "No data"
+                row.dayStatus[epochDay] == CheckStatus.CHECKED -> "Done"
+                row.dayStatus[epochDay] == CheckStatus.SKIPPED -> "Skipped"
+                StreakCalculator.isScheduledDay(habit, day) -> "Not done"
+                else -> "No habit scheduled"
+            }
+            Text(
+                day.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.ENGLISH) + " " +
+                    day.monthValue + "/" + day.dayOfMonth + " · " + status,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+        }
+    }
+}
+
+/**
+ * Today-check button with a satisfying animated ring fill: when checked, a
+ * sweep animates around the habit-colored circle and a check scale-bounces in.
+ */
+@Composable
+private fun HabitCheckButton(
+    checked: Boolean,
+    colorInt: Int,
+    onCheck: () -> Unit,
+) {
+    val color = Color(colorInt)
+    val tokens = orvaneTokens()
+    val sweep = remember { Animatable(0f) }
+    val checkScale = remember { Animatable(1f) }
+    LaunchedEffect(checked) {
+        if (checked) {
+            sweep.snapTo(0f)
+            sweep.animateTo(
+                1f,
+                tween(durationMillis = 300, easing = tokens.motion.emphasizedEasing),
+            )
+            checkScale.snapTo(0.6f)
+            checkScale.animateTo(
+                1f,
+                spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessMediumLow,
+                ),
+            )
+        } else {
+            sweep.snapTo(0f)
+            checkScale.snapTo(1f)
+        }
+    }
+    Box(
+        Modifier
+            .size(34.dp)
+            .clickable { onCheck() }
+            .semantics {
+                contentDescription = if (checked) "Done today, tap to undo" else "Mark habit done"
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(Modifier.size(34.dp)) {
+            val stroke = 2.dp.toPx()
+            val radius = (size.minDimension - stroke) / 2
+            drawCircle(
+                color = color.copy(alpha = if (checked) 1f else 0.15f),
+                radius = radius,
+                style = Stroke(stroke),
+            )
+            if (checked && sweep.value > 0f) {
+                drawArc(
+                    color = color,
+                    startAngle = -90f,
+                    sweepAngle = 360f * sweep.value,
+                    useCenter = false,
+                    style = Stroke(stroke, cap = StrokeCap.Round),
+                )
+            }
+            if (checked && sweep.value >= 1f) {
+                drawCircle(color = color, radius = radius)
+            }
+        }
+        if (checked) {
+            Icon(
+                Icons.Filled.Check,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier
+                    .size(18.dp)
+                    .graphicsLayer {
+                        scaleX = checkScale.value
+                        scaleY = checkScale.value
+                    },
+            )
         }
     }
 }

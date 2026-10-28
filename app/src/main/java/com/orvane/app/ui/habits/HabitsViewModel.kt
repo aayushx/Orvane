@@ -8,6 +8,7 @@ import com.orvane.app.data.db.CheckStatus
 import com.orvane.app.data.db.HabitEntity
 import com.orvane.app.data.db.HabitFreqType
 import com.orvane.app.data.repo.HabitRepository
+import com.orvane.app.data.settings.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.LocalDate
 import javax.inject.Inject
@@ -40,21 +41,30 @@ data class HabitsUiState(
     val doneToday: Int = 0,
     val scheduledTodayCount: Int = 0,
     val archived: List<HabitEntity> = emptyList(),
+    /** Habit nag cutoff from Settings ("Reminds until …" (Round 2 / C2)). */
+    val nagCutoffHour: Int = 21,
+    val nagCutoffMinute: Int = 0,
 )
 
 @HiltViewModel
 class HabitsViewModel @Inject constructor(
     private val repo: HabitRepository,
+    settings: SettingsRepository,
 ) : ViewModel() {
 
     private val refresh = MutableStateFlow(0)
 
     val state: StateFlow<HabitsUiState> = combine(
-        repo.observeActive(),
-        repo.observeAllChecks(),
-        repo.observeArchived(),
-        refresh,
-    ) { habits, checks, archived, _ ->
+        combine(
+            repo.observeActive(),
+            repo.observeAllChecks(),
+            repo.observeArchived(),
+            refresh,
+        ) { habits, checks, archived, _ ->
+            Triple(habits, checks, archived)
+        },
+        settings.settings,
+    ) { (habits, checks, archived), st ->
         val today = LocalDate.now(Time.zone())
         val rows = habits.map { habit ->
             val mine = checks.filter { it.habitId == habit.id }
@@ -88,6 +98,8 @@ class HabitsViewModel @Inject constructor(
             doneToday = done,
             scheduledTodayCount = scheduled.size,
             archived = archived,
+            nagCutoffHour = st.habitNagCutoffHour,
+            nagCutoffMinute = st.habitNagCutoffMinute,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(4000), HabitsUiState())
 
