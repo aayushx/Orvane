@@ -62,6 +62,7 @@ import com.orvane.app.data.db.CalendarEventEntity
 import com.orvane.app.data.db.TaskEntity
 import com.orvane.app.ui.common.Format
 import com.orvane.app.ui.tasks.TaskRow
+import com.orvane.app.ui.theme.orvaneTokens
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -367,6 +368,11 @@ private fun MonthGrid(state: CalendarUiState, onDayTapped: (LocalDate) -> Unit) 
     }
 }
 
+/**
+ * One calendar day cell (Round 2 / C4): TODAY is a filled circle in primary,
+ * the SELECTED day is a tonal pill in the scheme container; task dots render
+ * in their list colors (fallback primary), event dots in the scheme accent.
+ */
 @Composable
 private fun DayCell(
     day: LocalDate?,
@@ -380,47 +386,61 @@ private fun DayCell(
         modifier = modifier
             .padding(1.dp)
             .aspectRatio(1f)
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(50))
             .background(
                 when {
-                    isSelected -> MaterialTheme.colorScheme.primary
+                    isSelected -> MaterialTheme.colorScheme.secondaryContainer
                     isToday -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                     else -> Color.Transparent
                 },
             )
-            .clickable { onClick() }
-            .padding(vertical = 4.dp),
+            .clickable { onClick() },
         horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
     ) {
         if (day != null) {
-            Text(
-                day.dayOfMonth.toString(),
-                style = MaterialTheme.typography.bodySmall,
-                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-            )
+            Box(
+                Modifier
+                    .size(28.dp)
+                    .background(
+                        if (isToday) MaterialTheme.colorScheme.primary
+                        else Color.Transparent,
+                        CircleShape,
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    day.dayOfMonth.toString(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = when {
+                        isToday -> MaterialTheme.colorScheme.onPrimary
+                        isSelected -> MaterialTheme.colorScheme.onSecondaryContainer
+                        else -> MaterialTheme.colorScheme.onSurface
+                    },
+                )
+            }
             Spacer(Modifier.height(2.dp))
             Row {
-                val taskDots = (dots?.taskCount ?: 0).coerceAtMost(3)
-                val eventDots = (dots?.eventCount ?: 0).coerceAtMost(2)
-                for (i in 0 until taskDots) {
+                val taskDots = dots?.taskColors?.take(3) ?: emptyList()
+                for (taskColor in taskDots) {
                     Box(
                         Modifier
                             .padding(horizontal = 1.dp)
                             .size(5.dp)
                             .background(
-                                if (isSelected) MaterialTheme.colorScheme.onPrimary
-                                else MaterialTheme.colorScheme.primary,
+                                Color(taskColor).copy(alpha = 0.85f),
                                 CircleShape,
                             ),
                     )
                 }
+                val eventDots = (dots?.eventCount ?: 0).coerceAtMost(2)
                 for (i in 0 until eventDots) {
                     Box(
                         Modifier
                             .padding(horizontal = 1.dp)
                             .size(5.dp)
                             .background(
-                                if (isSelected) MaterialTheme.colorScheme.onPrimary
+                                if (isSelected && taskDots.isEmpty()) MaterialTheme.colorScheme.onSecondaryContainer
                                 else MaterialTheme.colorScheme.tertiary,
                                 CircleShape,
                             ),
@@ -826,16 +846,21 @@ private fun AgendaView(state: CalendarUiState) {
 
 // ---------------- Shared rows / dialogs ----------------
 
+/** Agenda event card (Round 2 / C4): 4dp leading bar, time range, 12dp radius card. */
 @Composable
 private fun EventRow(event: CalendarEventEntity, onDelete: (String) -> Unit = {}) {
+    val tokens = orvaneTokens()
     Row(
         Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 4.dp),
+            .padding(horizontal = tokens.spacing.md, vertical = tokens.spacing.xs)
+            .clip(RoundedCornerShape(tokens.corners.card))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             Modifier
+                .padding(vertical = tokens.spacing.sm)
                 .width(4.dp)
                 .height(38.dp)
                 .background(
@@ -844,7 +869,7 @@ private fun EventRow(event: CalendarEventEntity, onDelete: (String) -> Unit = {}
                     RoundedCornerShape(2.dp),
                 ),
         )
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(tokens.spacing.md))
         Column(Modifier.weight(1f)) {
             Text(
                 event.title,
@@ -862,6 +887,7 @@ private fun EventRow(event: CalendarEventEntity, onDelete: (String) -> Unit = {}
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        Spacer(Modifier.width(tokens.spacing.sm))
         IconButton(onClick = { onDelete(event.id) }, modifier = Modifier.size(28.dp)) {
             Icon(
                 Icons.Default.Close,
@@ -869,6 +895,7 @@ private fun EventRow(event: CalendarEventEntity, onDelete: (String) -> Unit = {}
                 modifier = Modifier.size(16.dp),
             )
         }
+        Spacer(Modifier.width(tokens.spacing.xs))
     }
 }
 
@@ -904,7 +931,10 @@ private fun EventEditorDialog(
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
         title = { Text("New event") },
         text = {
-            Column {
+            Column(
+                Modifier.padding(vertical = orvaneTokens().spacing.xs),
+                verticalArrangement = Arrangement.spacedBy(orvaneTokens().spacing.sm),
+            ) {
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
@@ -914,7 +944,7 @@ private fun EventEditorDialog(
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Switch(checked = allDay, onCheckedChange = { allDay = it })
-                    Spacer(Modifier.width(10.dp))
+                    Spacer(Modifier.width(orvaneTokens().spacing.sm))
                     Text("All day")
                 }
                 if (!allDay) {
@@ -923,7 +953,7 @@ private fun EventEditorDialog(
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(orvaneTokens().spacing.xs))
                     com.orvane.app.ui.common.CustomTimeChipRow(
                         presetHours = listOf(7, 8, 9, 10, 11, 13, 14, 15, 16, 18, 19),
                         currentHour = startHour,
@@ -934,7 +964,7 @@ private fun EventEditorDialog(
                         },
                     )
                     Spacer(Modifier.height(4.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(orvaneTokens().spacing.sm)) {
                         FilterChip(selected = durationHours == 1, onClick = { durationHours = 1 }, label = { Text("1 h") })
                         FilterChip(selected = durationHours == 2, onClick = { durationHours = 2 }, label = { Text("2 h") })
                         FilterChip(selected = durationHours == 4, onClick = { durationHours = 4 }, label = { Text("4 h") })

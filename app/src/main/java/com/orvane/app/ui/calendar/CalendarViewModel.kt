@@ -26,6 +26,8 @@ import kotlinx.coroutines.launch
 data class DayDots(
     val taskCount: Int = 0,
     val eventCount: Int = 0,
+    /** List colors of that day's tasks (task dots render in the list color, C4). */
+    val taskColors: List<Int> = emptyList(),
 )
 
 data class CalendarUiState(
@@ -110,20 +112,27 @@ class CalendarViewModel @Inject constructor(
         combine(month, selected) { m, sel -> m to sel },
         combine(monthTasks, monthEvents) { mt, me -> mt to me },
         combine(weekTasks, weekEvents) { wt, we -> wt to we },
-        combine(taskRepo.observeAllActive(), calendarRepo.observeFeeds()) { active, feeds ->
-            active to feeds
+        combine(
+            taskRepo.observeAllActive(),
+            calendarRepo.observeFeeds(),
+            taskRepo.observeLists(),
+        ) { active, feeds, lists ->
+            active to feeds to lists
         },
         upcomingPair,
-    ) { monthSel, monthPair, weekPair, activeFeeds, upPair ->
+    ) { monthSel, monthPair, weekPair, activeFeedsLists, upPair ->
         val (m, sel) = monthSel
         val (monthTaskList, monthEventList) = monthPair
         val (weekTaskList, weekEventList) = weekPair
-        val (active, feeds) = activeFeeds
+        val (pair, lists) = activeFeedsLists
+        val (active, feeds) = pair
+        val listColorById = lists.associate { it.id to it.color }
         val (upcomingTaskList, upcomingEventList) = upPair
         build(
             m, sel, monthTaskList, monthEventList,
             weekTaskList, weekEventList, active, feeds,
             upcomingTaskList, upcomingEventList,
+            listColorById,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(4000), CalendarUiState())
 
@@ -138,28 +147,33 @@ class CalendarViewModel @Inject constructor(
         feeds: List<IcsFeedEntity>,
         upcomingTasks: List<TaskEntity>,
         upcomingEvents: List<CalendarEventEntity>,
+        listColorById: Map<String, Int>,
     ): CalendarUiState {
-        // --- month dots ---
+        // --- month dots (task dots carry the owning list's color) ---
         val dots = mutableMapOf<LocalDate, DayDots>()
-        fun bump(day: LocalDate, task: Boolean, event: Boolean) {
+        fun bumpTask(day: LocalDate, listColor: Int?) {
             val cur = dots.getOrDefault(day, DayDots())
             dots[day] = cur.copy(
-                taskCount = cur.taskCount + (if (task) 1 else 0),
-                eventCount = cur.eventCount + (if (event) 1 else 0),
+                taskCount = cur.taskCount + 1,
+                taskColors = (cur.taskColors + listOfNotNull(listColor)).takeLast(3),
             )
         }
-        for (t in monthTasks) t.due?.let { bump(Time.toLocalDate(it), task = true, event = false) }
+        fun bumpEvent(day: LocalDate) {
+            val cur = dots.getOrDefault(day, DayDots())
+            dots[day] = cur.copy(eventCount = cur.eventCount + 1)
+        }
+        for (t in monthTasks) t.due?.let { bumpTask(Time.toLocalDate(it), t.listId?.let(listColorById::get)) }
         for (e in monthEvents) {
             if (e.allDay) {
                 val from = Time.toLocalDate(e.start)
                 val last = Time.toLocalDate(e.end).minusDays(1)
                 var d = if (from.isAfter(last)) last else from
                 while (!d.isAfter(last)) {
-                    bump(d, task = false, event = true)
+                    bumpEvent(d)
                     d = d.plusDays(1)
                 }
             } else {
-                bump(Time.toLocalDate(e.start), task = false, event = true)
+                bumpEvent(Time.toLocalDate(e.start))
             }
         }
         // --- selected-day agenda ---
