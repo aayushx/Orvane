@@ -34,7 +34,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -453,6 +455,67 @@ private fun TodayPlanView(state: FocusUiState, vm: FocusViewModel) {
     }
 }
 
+/**
+ * ±5-minute steppers over the configured pomodoro lengths. Starting a session
+ * uses exactly these values, and each press immediately persists to Settings
+ * (Round 2 / B2: setup sheet and settings can never diverge).
+ */
+@Composable
+fun PomodoroLengthSteppers(
+    configMinutes: Triple<Int, Int, Int>,
+    cycles: Int,
+    vm: FocusViewModel,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
+            Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Stepper(label = "Focus", value = configMinutes.first, onDelta = { vm.nudgePomodoro(0, it) })
+            Stepper(label = "Short", value = configMinutes.second, onDelta = { vm.nudgePomodoro(1, it) })
+            Stepper(label = "Long", value = configMinutes.third, onDelta = { vm.nudgePomodoro(2, it) })
+            Stepper(label = "× before", value = cycles, step = 1, onDelta = { vm.nudgePomodoro(3, it) })
+        }
+        Text(
+            "Next session runs with these lengths",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun Stepper(
+    label: String,
+    value: Int,
+    step: Int = 5,
+    onDelta: (Int) -> Unit,
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(
+                modifier = Modifier.size(28.dp),
+                onClick = { onDelta(-step) },
+            ) {
+                Icon(Icons.Default.Remove, contentDescription = "Decrease $label by $step")
+            }
+            Text(
+                "$value",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
+            IconButton(
+                modifier = Modifier.size(28.dp),
+                onClick = { onDelta(step) },
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Increase $label by $step")
+            }
+        }
+    }
+}
+
 // ---------------- Setup dialog ----------------
 
 @Composable
@@ -489,11 +552,12 @@ private fun StartSetupDialog(
         title = { Text("Set up focus session") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
-                Text(
-                    "${state.configMinutes.first} min focus · ${state.configMinutes.second} min short break · " +
-                        "${state.configMinutes.third} min long break (edit in Settings)",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                // Live lengths: steppers below write-through to Settings, so the
+                // sheet and Settings can never diverge (Round 2 / B2).
+                PomodoroLengthSteppers(
+                    configMinutes = state.configMinutes,
+                    cycles = state.configCycles,
+                    vm = vm,
                 )
                 Spacer(Modifier.height(8.dp))
                 Text("White noise: ${selectedNoise.replaceFirstChar { it.uppercase(Locale.ENGLISH) }}", style = MaterialTheme.typography.bodyMedium)

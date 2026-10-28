@@ -98,14 +98,10 @@ class PomodoroController @Inject constructor(
         when (cur.phase) {
             PomodoroPhase.FOCUS -> {
                 val settings = settingsRepository.current().pomodoro
-                recordFocusSession(cur)
                 val cycles = cur.cyclesCompleted + 1
-                val longBreak = cycles % settings.cyclesBeforeLongBreak.coerceAtLeast(1) == 0
-                setPhase(
-                    if (longBreak) PomodoroPhase.LONG_BREAK else PomodoroPhase.SHORT_BREAK,
-                    (if (longBreak) settings.longBreakMinutes else settings.shortBreakMinutes) * 60L,
-                    cur.copy(cyclesCompleted = cycles),
-                )
+                val (phase, minutes) = PomodoroController.nextBreakPhase(cycles, settings)
+                recordFocusSession(cur)
+                setPhase(phase, minutes * 60L, cur.copy(cyclesCompleted = cycles))
             }
             PomodoroPhase.SHORT_BREAK, PomodoroPhase.LONG_BREAK -> {
                 sessionDao.insert(
@@ -188,4 +184,17 @@ class PomodoroController @Inject constructor(
     /** Title of the linked task, for the persistent notification. */
     suspend fun linkedTaskTitle(taskId: String?): String? =
         taskId?.let { taskRepository.getById(it)?.title }
+
+    companion object {
+        /**
+         * Which break follows the Nth completed focus cycle and how long it
+         * runs — pure so tests can pin the cycle math (Round 2 / B2).
+         */
+        fun nextBreakPhase(cyclesCompleted: Int, cfg: com.orvane.app.data.settings.PomodoroConfig): Pair<PomodoroPhase, Int> =
+            if (cyclesCompleted % cfg.cyclesBeforeLongBreak.coerceAtLeast(1) == 0) {
+                PomodoroPhase.LONG_BREAK to cfg.longBreakMinutes
+            } else {
+                PomodoroPhase.SHORT_BREAK to cfg.shortBreakMinutes
+            }
+    }
 }

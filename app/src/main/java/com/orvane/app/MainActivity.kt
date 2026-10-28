@@ -48,6 +48,7 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -78,6 +79,7 @@ import com.orvane.app.ui.tasks.TaskDetailScreen
 import com.orvane.app.ui.tasks.TasksScreen
 import com.orvane.app.ui.tasks.TasksViewModel
 import com.orvane.app.ui.theme.OrvaneTheme
+import com.orvane.app.data.settings.ThemeMode
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -116,11 +118,23 @@ class MainActivity : FragmentActivity() {
         enableEdgeToEdge()
         val quickAdd = intent?.getBooleanExtra(EXTRA_OPEN_QUICK_ADD, false) == true
         setContent {
-            OrvaneTheme {
+            // The theme consumes the USER settings, not just the system mode:
+            // themeMode (System/Light/Dark) and the dynamic-color toggle are the
+            // authoritative inputs (Round 2 / B4 — both toggles were dead).
+            val settings by settingsRepository.settings
+                .collectAsState(initial = null)
+            val mode = settings?.themeMode
+            OrvaneTheme(
+                darkTheme = when (mode) {
+                    ThemeMode.LIGHT -> false
+                    ThemeMode.DARK -> true
+                    else -> isSystemInDarkTheme()
+                },
+                dynamicColor = settings?.dynamicColor ?: true,
+            ) {
                 AppRoot(openQuickAddOnStart = quickAdd)
             }
-        }
-    }
+        }    }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)

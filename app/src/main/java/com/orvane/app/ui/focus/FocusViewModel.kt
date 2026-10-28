@@ -13,6 +13,7 @@ import com.orvane.app.data.repo.CalendarRepository
 import com.orvane.app.data.repo.FocusRepository
 import com.orvane.app.data.repo.TaskRepository
 import com.orvane.app.data.settings.AppSettings
+import com.orvane.app.data.settings.PomodoroConfig
 import com.orvane.app.data.settings.SettingsRepository
 import com.orvane.app.core.util.Time
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -35,6 +36,9 @@ import kotlinx.coroutines.withContext
 /** White-noise loops bundled in assets/whitenoise. */
 val NOISES = listOf("brown", "rain", "waves", "forest", "cafe")
 
+/** Shared bound for pomodoro in-sheet steppers (minutes). */
+const val POMO_MIN_MINUTES = 1
+
 data class FocusStatsState(
     val todaySeconds: Long = 0,
     val weekSeconds: Long = 0,
@@ -51,6 +55,7 @@ data class MatrixCell(
 data class FocusUiState(
     val pomo: PomodoroState = PomodoroState(),
     val configMinutes: Triple<Int, Int, Int> = Triple(25, 5, 15),
+    val configCycles: Int = 4,
     val activeTasks: List<TaskEntity> = emptyList(),
     val stats: FocusStatsState = FocusStatsState(),
     val matrix: List<MatrixCell> = emptyList(),
@@ -160,6 +165,7 @@ class FocusViewModel @Inject constructor(
                 cfg?.shortBreakMinutes ?: 5,
                 cfg?.longBreakMinutes ?: 15,
             ),
+            configCycles = cfg?.cyclesBeforeLongBreak ?: 4,
             activeTasks = active,
             stats = stats,
             matrix = matrix,
@@ -176,6 +182,24 @@ class FocusViewModel @Inject constructor(
     }
 
     // ---- Control ----
+
+    fun setPomodoro(config: PomodoroConfig) {
+        viewModelScope.launch { settingsRepo.setPomodoroConfig(config) }
+    }
+
+    /** Nudge a pomodoro length by ±minutes (sheet ±5 steppers), persisted. */
+    fun nudgePomodoro(field: Int, delta: Int) {
+        viewModelScope.launch {
+            val cfg = settingsRepo.current().pomodoro
+            val next = when (field) {
+                0 -> cfg.copy(focusMinutes = (cfg.focusMinutes + delta).coerceIn(POMO_MIN_MINUTES, 180))
+                1 -> cfg.copy(shortBreakMinutes = (cfg.shortBreakMinutes + delta).coerceIn(POMO_MIN_MINUTES, 30))
+                2 -> cfg.copy(longBreakMinutes = (cfg.longBreakMinutes + delta).coerceIn(POMO_MIN_MINUTES, 60))
+                else -> cfg.copy(cyclesBeforeLongBreak = (cfg.cyclesBeforeLongBreak + delta).coerceIn(1, 12))
+            }
+            settingsRepo.setPomodoroConfig(next)
+        }
+    }
 
     fun startPomodoro() {
         viewModelScope.launch {

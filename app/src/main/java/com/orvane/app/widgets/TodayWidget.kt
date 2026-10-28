@@ -121,7 +121,7 @@ class TodayWidget : GlanceAppWidget() {
                                 .height(8.dp)
                                 .background(
                                     widgetColor(
-                                        if (task.priority == 3) Color.Red else Color(0xFFE6B800),
+                                        if (task.priority == 3) com.orvane.app.ui.theme.PriorityHigh else com.orvane.app.ui.theme.PriorityMedium,
                                     ),
                                 ),
                         ) {}

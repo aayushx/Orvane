@@ -61,11 +61,17 @@ val InverseOnSurfaceDark = Color(0xFF2F3038)
 val SurfaceContainerDark = Color(0xFF1E2027)
 val SurfaceContainerHighestDark = Color(0xFF2A2C33)
 
-// Priority colors (TickTick-style flags)
-val PriorityHigh = Color(0xFFD11507)
-val PriorityMedium = Color(0xFFE6B800)
-val PriorityLow = Color(0xFF2E9CEF)
+// Priority colors (TickTick-style flags) — the single definition point;
+// screens must consume these (Round 2 / B4)
+val PriorityHigh = Color(0xFFE53935)
+val PriorityMedium = Color(0xFFF6A623)
+val PriorityLow = Color(0xFF4CA6E8)
 val PriorityNone = Color(0xFF9DA3AE)
 
-// Habit categories
-val HabitColorBackground = Color(0xFFF2F2F7)
+fun priorityColor(priority: Int): Color = when (priority) {
+    com.orvane.app.data.db.TaskPriority.HIGH -> PriorityHigh
+    com.orvane.app.data.db.TaskPriority.MEDIUM -> PriorityMedium
+    com.orvane.app.data.db.TaskPriority.LOW -> PriorityLow
+    else -> PriorityNone
+}
+
