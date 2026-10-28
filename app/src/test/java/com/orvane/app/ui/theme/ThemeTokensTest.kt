@@ -53,4 +53,28 @@ class ThemeTokensTest {
         // Engine wiring sanity: the SDK guard matches Compose's Behavior.
         assertTrue(Build.VERSION_CODES.S == 31)
     }
+
+    // ---- C0: app tokens derive from the live scheme ----
+
+    @Test
+    fun quadrantsDeriveFromSchemeContainers() {
+        val lightScheme = androidx.compose.material3.lightColorScheme()
+        val tokens = orvaneTokens(lightScheme, dark = false)
+        assertEquals(lightScheme.errorContainer, tokens.quadrantDoFirst)
+        assertEquals(lightScheme.primaryContainer, tokens.quadrantSchedule)
+        assertEquals(lightScheme.tertiaryContainer, tokens.quadrantDelegate)
+        assertEquals(lightScheme.surfaceContainerHigh, tokens.quadrantLater)
+    }
+
+    @Test
+    fun successAndWarningTrackSchemeBrightness() {
+        val light = orvaneTokens(androidx.compose.material3.lightColorScheme(), dark = false)
+        val dark = orvaneTokens(androidx.compose.material3.darkColorScheme(), dark = true)
+        assertNotEquals(light.success, dark.success)
+        assertNotEquals(light.warning, dark.warning)
+        assertEquals(
+            androidx.compose.material3.lightColorScheme().outlineVariant,
+            light.cardBorder,
+        )
+    }
 }
