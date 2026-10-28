@@ -224,7 +224,7 @@ fun DrawerContent(
     vm: DrawerViewModel = hiltViewModel(),
 ) {
     val state by vm.state.collectAsState()
-    var listDialog by remember { mutableStateOf(ManageTarget.ListTarget(null)) }
+    var listDialog by remember { mutableStateOf<ManageTarget.ListTarget?>(null) }
     var folderDialog by remember { mutableStateOf<ManageTarget.FolderTarget?>(null) }
     var tagDialogTag by remember { mutableStateOf<TagEntity?>(null) }
 
@@ -308,36 +308,35 @@ fun DrawerContent(
 
     // ---------- Manage dialogs ----------
 
-    when (val target = listDialog) {
-        is ManageTarget.ListTarget ->
-            if (target.isCreate) {
-                ListEditorDialog(
-                    existing = null,
-                    folders = state.folders,
-                    onSave = { name, color, folderId ->
-                        vm.createList(name, color, folderId)
-                        listDialog = ManageTarget.ListTarget(null)
-                    },
-                    onDelete = null,
-                    onDismiss = { listDialog = ManageTarget.ListTarget(null) },
-                )
-            } else {
-                val list = target.list
-                checkNotNull(list)
-                ListEditorDialog(
-                    existing = list,
-                    folders = state.folders,
-                    onSave = { name, color, folderId ->
-                        vm.updateList(list.id, name, color, folderId)
-                        listDialog = ManageTarget.ListTarget(null)
-                    },
-                    onDelete = {
-                        vm.deleteList(list.id)
-                        listDialog = ManageTarget.ListTarget(null)
-                    },
-                    onDismiss = { listDialog = ManageTarget.ListTarget(null) },
-                )
-            }
+    listDialog?.let { target ->
+        if (target.isCreate) {
+            ListEditorDialog(
+                existing = null,
+                folders = state.folders,
+                onSave = { name, color, folderId ->
+                    vm.createList(name, color, folderId)
+                    listDialog = null
+                },
+                onDelete = null,
+                onDismiss = { listDialog = null },
+            )
+        } else {
+            val list = target.list
+            checkNotNull(list)
+            ListEditorDialog(
+                existing = list,
+                folders = state.folders,
+                onSave = { name, color, folderId ->
+                    vm.updateList(list.id, name, color, folderId)
+                    listDialog = null
+                },
+                onDelete = {
+                    vm.deleteList(list.id)
+                    listDialog = null
+                },
+                onDismiss = { listDialog = null },
+            )
+        }
     }
 
     folderDialog?.let { target ->
