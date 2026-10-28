@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -66,79 +67,89 @@ fun OnboardingScreen(
     var page by rememberSaveable { mutableIntStateOf(0) }
     var seeding by rememberSaveable { mutableStateOf(false) }
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(28.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        val (title, body) = PAGES_TITLES[page]
-        Spacer(Modifier.height(60.dp))
-        Text(
-            when (page) {
-                0 -> "✅"
-                1 -> "✍️"
-                else -> "🌱"
-            },
-            style = MaterialTheme.typography.displayLarge,
-        )
-        Spacer(Modifier.height(24.dp))
-        Text(title, style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
-        Spacer(Modifier.height(12.dp))
-        Text(
-            body,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.height(48.dp))
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
+    // Surface provides the content-color (material onBackground); without it the
+    // composable's text fell back to ambient black ink — unreadable titles in
+    // dark mode (QA contrast finding).
+    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(28.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            repeat(PAGES_TITLES.size) { i ->
-                Text(
-                    if (i == page) "●" else "○",
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 4.dp),
-                )
-            }
-        }
-        Spacer(Modifier.height(24.dp))
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            if (page > 0) {
-                OutlinedButton(onClick = { page -= 1 }) { Text("Back") }
-            } else {
-                Spacer(Modifier.height(1.dp))
-            }
-            when {
-                page < PAGES_TITLES.size - 1 ->
-                    Button(onClick = { page += 1 }) { Text("Next") }
-                else -> {
-                    OutlinedButton(
-                        enabled = !seeding,
-                        onClick = { seeding = true; vm.finish(false, onDone) },
-                    ) { Text("Skip sample data") }
-                    Button(
-                        enabled = !seeding,
-                        onClick = { seeding = true; vm.finish(true, onDone) },
-                    ) { Text("Start with samples") }
-                }
-            }
-        }
-        if (seeding) {
+            val (title, body) = PAGES_TITLES[page]
+            Spacer(Modifier.height(60.dp))
+            Text(
+                when (page) {
+                    0 -> "✅"
+                    1 -> "✍️"
+                    else -> "🌱"
+                },
+                style = MaterialTheme.typography.displayLarge,
+            )
+            Spacer(Modifier.height(24.dp))
+            Text(
+                title,
+                style = MaterialTheme.typography.headlineMedium,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onBackground,
+            )
             Spacer(Modifier.height(12.dp))
             Text(
-                "Preparing your data…",
-                style = MaterialTheme.typography.bodySmall,
+                body,
+                style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
             )
+            Spacer(Modifier.height(48.dp))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                repeat(PAGES_TITLES.size) { i ->
+                    Text(
+                        if (i == page) "●" else "○",
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                    )
+                }
+            }
+            Spacer(Modifier.height(24.dp))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                if (page > 0) {
+                    OutlinedButton(onClick = { page -= 1 }) { Text("Back") }
+                } else {
+                    Spacer(Modifier.height(1.dp))
+                }
+                when {
+                    page < PAGES_TITLES.size - 1 ->
+                        Button(onClick = { page += 1 }) { Text("Next") }
+                    else -> {
+                        OutlinedButton(
+                            enabled = !seeding,
+                            onClick = { seeding = true; vm.finish(false, onDone) },
+                        ) { Text("Skip sample data") }
+                        Button(
+                            enabled = !seeding,
+                            onClick = { seeding = true; vm.finish(true, onDone) },
+                        ) { Text("Start with samples") }
+                    }
+                }
+            }
+            if (seeding) {
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    "Preparing your data…",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.height(48.dp))
         }
-        Spacer(Modifier.height(48.dp))
     }
 }

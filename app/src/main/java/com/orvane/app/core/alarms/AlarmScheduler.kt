@@ -8,6 +8,7 @@ import android.content.Intent
 import android.os.Build
 import com.orvane.app.core.notifications.NotificationHelper
 import com.orvane.app.core.notifications.OrvaneNotifications
+import com.orvane.app.core.util.AlarmTimes
 import com.orvane.app.data.settings.SettingsRepository
 import com.orvane.app.data.repo.TaskRepository
 import dagger.hilt.android.AndroidEntryPoint
@@ -23,7 +24,7 @@ import javax.inject.Singleton
 interface AlarmScheduler {
     fun scheduleReminder(id: String, atMillis: Long)
     fun cancelReminder(id: String)
-    fun scheduleHabit(habit: com.orvane.app.data.db.HabitEntity)
+    fun scheduleHabit(habit: com.orvane.app.data.db.HabitEntity, nagHour: Int, nagMinute: Int)
     fun cancelHabit(habitId: String)
     fun scheduleHabitSnooze(habitId: String, atMillis: Long)
     fun canScheduleExact(): Boolean
@@ -99,13 +100,20 @@ class AndroidAlarmScheduler @Inject constructor(
         setCompat(atMillis, pi)
     }
 
-    override fun scheduleHabit(habit: com.orvane.app.data.db.HabitEntity) {
+    override fun scheduleHabit(habit: com.orvane.app.data.db.HabitEntity, nagHour: Int, nagMinute: Int) {
         if (habit.archived) return
         if (habit.reminderEnabled) {
-            scheduleHabit(habit.id, nextOccurrenceOf(habit.reminderHour, habit.reminderMinute), isNag = false)
+            scheduleHabit(
+                habit.id,
+                AlarmTimes.nextOccurrence(habit.reminderHour, habit.reminderMinute, System.currentTimeMillis()),
+                isNag = false,
+            )
         }
         if (habit.nagEnabled) {
-            scheduleHabit(habit.id, nextOccurrenceOf(habit.nagHour, habit.nagMinute), isNag = true)
+            // The nag fires at the evening CUTOFF passed in by the repository —
+            // the Settings cutoff is the single source of truth (Round 2 / B1)
+            // and is re-picked through the custom time picker.
+            scheduleHabit(habit.id, AlarmTimes.nextOccurrence(nagHour, nagMinute, System.currentTimeMillis()), isNag = true)
         }
     }
 
@@ -124,15 +132,6 @@ class AndroidAlarmScheduler @Inject constructor(
             @Suppress("UNNECESSARY_SAFE_CALL")
             alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMillis, pi)
         }
-    }
-
-    private fun nextOccurrenceOf(hour: Int, minute: Int): Long {
-        val zone = java.time.ZoneId.systemDefault()
-        var t = java.time.LocalDate.now().atTime(hour, minute).atZone(zone).toInstant().toEpochMilli()
-        if (t <= System.currentTimeMillis()) {
-            t += 24L * 60 * 60 * 1000
-        }
-        return t
     }
 
     companion object {

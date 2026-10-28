@@ -241,7 +241,10 @@ private fun AppRoot(openQuickAddOnStart: Boolean) {
                     showSettings -> {} // settings has its own header
                     showSearch -> {} // search has its own field
                     else -> TopAppBar(
-                        title = { Text(state.viewTitle) },
+                        // Title names the DESTINATION, not just the tasks view:
+                        // bottom tabs other than Today are their own destination
+                        // (QA: title stuck on a list name after tab switches).
+                        title = { Text(if (tab == Tab.Today) state.viewTitle else tab.title) },
                         navigationIcon = {
                             IconButton(onClick = { scope.launch { drawer.open() } }) {
                                 Icon(Icons.Default.Menu, contentDescription = "Navigation menu")
@@ -307,7 +310,11 @@ private fun AppRoot(openQuickAddOnStart: Boolean) {
 
     if (quickAddRequested) {
         QuickAddSheet(
-            onDismiss = { quickAddRequested = false },
+            onDismiss = {
+                quickAddRequested = false
+                // Drafts die with the sheet: no stale text when it reopens (QA).
+                quickVm.clearDraft()
+            },
             vm = quickVm,
         )
     }

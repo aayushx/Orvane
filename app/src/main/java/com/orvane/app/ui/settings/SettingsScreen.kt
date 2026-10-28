@@ -2,14 +2,21 @@ package com.orvane.app.ui.settings
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -20,6 +27,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -30,7 +40,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.size
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 
@@ -40,6 +52,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.orvane.app.core.backup.AutoBackupWorker
 import com.orvane.app.data.repo.BackupRepository
+import com.orvane.app.data.repo.HabitRepository
 import com.orvane.app.data.settings.AppSettings
 import com.orvane.app.data.settings.PomodoroConfig
 import com.orvane.app.data.settings.SettingsRepository
@@ -57,6 +70,7 @@ import kotlinx.coroutines.launch
 class SettingsViewModel @Inject constructor(
     private val settings: SettingsRepository,
     private val backupRepo: BackupRepository,
+    private val habitRepo: HabitRepository,
 ) : ViewModel() {
 
     val state: StateFlow<AppSettings?> = settings.settings
@@ -90,7 +104,15 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun setNagCutoff(hour: Int, minute: Int) {
-        viewModelScope.launch { settings.setNagCutoffHourHour(hour, minute) }
+        viewModelScope.launch {
+            settings.setNagCutoffHourHour(hour, minute)
+            // Re-point every nag alarm at the new (possibly custom) cutoff time.
+            habitRepo.rescheduleAll()
+        }
+    }
+
+    fun setSnoozePresets(presets: List<Int>) {
+        viewModelScope.launch { settings.setSnoozePresets(presets) }
     }
 
     // ---- App lock ----
@@ -178,17 +200,18 @@ fun SettingsScreen(
             item {
                 SectionTitle("Calendar")
                 Text("First day of week", style = MaterialTheme.typography.bodyMedium)
-                Row(
-                    Modifier.fillMaxWidth().padding(top = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
+                // Segmented row with equal weights keeps all 7 chips on one line
+                // at any width and font scale (QA: "Sun" wrapped into 3 lines).
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(top = 6.dp)) {
                     val days = listOf("Mon" to 1, "Tue" to 2, "Wed" to 3, "Thu" to 4, "Fri" to 5, "Sat" to 6, "Sun" to 7)
-                    for ((label, value) in days) {
-                        FilterChip(
+                    days.forEachIndexed { index, (label, value) ->
+                        SegmentedButton(
                             selected = s.firstDayOfWeek == value,
                             onClick = { vm.setFirstDay(value) },
-                            label = { Text(label) },
-                        )
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = days.size),
+                        ) {
+                            Text(label, maxLines = 1)
+                        }
                     }
                 }
                 HorizontalDivider(Modifier.padding(vertical = 10.dp))
@@ -202,6 +225,11 @@ fun SettingsScreen(
                 SectionTitle("Notifications")
                 ToggleRow("Sounds", s.soundsEnabled) { vm.setSounds(it) }
                 ToggleRow("Vibration", s.vibrationEnabled) { vm.setVibration(it) }
+                Text("Snooze presets (minutes on task reminders)", style = MaterialTheme.typography.bodyMedium)
+                SnoozePresetRow(
+                    presets = s.snoozePresets,
+                    onUpdate = { vm.setSnoozePresets(it) },
+                )
                 HorizontalDivider(Modifier.padding(vertical = 10.dp))
             }
             item {
@@ -212,18 +240,15 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Row(
-                    Modifier.fillMaxWidth().padding(top = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    listOf(19, 20, 21, 22).forEach { hour ->
-                        FilterChip(
-                            selected = s.habitNagCutoffHour == hour,
-                            onClick = { vm.setNagCutoff(hour, 0) },
-                            label = { Text("%02d:00".format(hour)) },
-                        )
-                    }
-                }
+                com.orvane.app.ui.common.CustomTimeChipRow(
+                    presetHours = listOf(19, 20, 21, 22),
+                    currentHour = s.habitNagCutoffHour,
+                    currentMinute = s.habitNagCutoffMinute,
+                    onSelect = { h, m -> vm.setNagCutoff(h, m) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 6.dp),
+                )
                 HorizontalDivider(Modifier.padding(vertical = 10.dp))
             }
             item {
@@ -253,6 +278,57 @@ fun SettingsScreen(
 @Composable
 private fun SectionTitle(text: String) {
     Text(text, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+}
+
+/**
+ * Snooze preset minutes (used on task-reminder notifications). Tap a preset to
+ * remove it; type a custom number of minutes and Add to extend — Round 2 / B1
+ * custom escape hatch for preset-only pickers.
+ */
+@Composable
+private fun SnoozePresetRow(
+    presets: List<Int>,
+    onUpdate: (List<Int>) -> Unit,
+) {
+    var customText by rememberSaveable { mutableStateOf("") }
+    Column(Modifier.padding(top = 6.dp)) {
+        Row(
+            Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            for (minutes in presets.sorted()) {
+                FilterChip(
+                    selected = false,
+                    onClick = { onUpdate(presets - minutes) },
+                    label = { Text(if (minutes >= 60) "${minutes / 60}h" else "${minutes}m") },
+                    leadingIcon = { Icon(Icons.Default.Close, contentDescription = "Remove ${minutes}m preset", modifier = Modifier.size(14.dp)) },
+                )
+            }
+        }
+        Row(
+            Modifier.fillMaxWidth().padding(top = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OutlinedTextField(
+                value = customText,
+                onValueChange = { customText = it.filter { c -> c.isDigit() }.take(4) },
+                label = { Text("Custom minutes…") },
+                singleLine = true,
+                modifier = Modifier.weight(1f),
+            )
+            Spacer(Modifier.width(8.dp))
+            TextButton(
+                enabled = customText.toIntOrNull() != null,
+                onClick = {
+                    val minutes = customText.toIntOrNull() ?: return@TextButton
+                    if (minutes > 0 && minutes !in presets) {
+                        onUpdate(presets + minutes)
+                    }
+                    customText = ""
+                },
+            ) { Text("Add") }
+        }
+    }
 }
 
 @Composable

@@ -2,6 +2,7 @@ package com.orvane.app.ui.quickadd
 
 import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -33,7 +34,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -58,7 +61,9 @@ fun QuickAddSheet(
     val aiBusy by vm.aiBusy.collectAsState()
     val aiMessage by vm.aiMessage.collectAsState()
     val aiSuggestion by vm.aiSuggestion.collectAsState()
+    val aiConfigured by vm.aiConfigured.collectAsState()
     val context = LocalContext.current
+    var voiceError by remember { mutableStateOf<String?>(null) }
 
     val voiceLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
@@ -68,6 +73,37 @@ fun QuickAddSheet(
                 ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
                 ?.firstOrNull()
             if (!spoken.isNullOrBlank()) vm.text.value = spoken
+        }
+    }
+
+    val launchRecognizer: () -> Unit = launch@{
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(
+                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM,
+            )
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "Say your task…")
+        }
+        runCatching { voiceLauncher.launch(intent) }
+            .onFailure {
+                android.widget.Toast.makeText(
+                    context,
+                    "Voice input unavailable on this device",
+                    android.widget.Toast.LENGTH_SHORT,
+                ).show()
+            }
+    }
+
+    // Request RECORD_AUDIO in-app BEFORE the recognizer: with the mic off, the
+    // system sheet misattributes the denial to a listening failure ("Didn't
+    // catch that") — QA finding. Ask first; if still denied, say exactly why.
+    val micPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) {
+            launchRecognizer()
+        } else {
+            voiceError = "Microphone permission is off — enable it in Settings to add tasks by voice"
         }
     }
 
@@ -93,24 +129,21 @@ fun QuickAddSheet(
                 placeholder = { Text("New task") },
                 maxLines = 3,
                 trailingIcon = {
-                    // Voice quick-add via the system speech recognizer.
-                    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                        putExtra(
-                            RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                            RecognizerIntent.LANGUAGE_MODEL_FREE_FORM,
-                        )
-                        putExtra(RecognizerIntent.EXTRA_PROMPT, "Say your task…")
-                    }
+                    // Voice quick-add via the system speech recognizer; mic
+                    // permission is requested in-app first (see micPermission).
                     androidx.compose.material3.IconButton(
                         onClick = {
-                            runCatching { voiceLauncher.launch(intent) }
-                                .onFailure {
-                                    android.widget.Toast.makeText(
-                                        context,
-                                        "Voice input unavailable on this device",
-                                        android.widget.Toast.LENGTH_SHORT,
-                                    ).show()
-                                }
+                            voiceError = null
+                            if (
+                                androidx.core.content.ContextCompat.checkSelfPermission(
+                                    context,
+                                    android.Manifest.permission.RECORD_AUDIO,
+                                ) == PackageManager.PERMISSION_GRANTED
+                            ) {
+                                launchRecognizer()
+                            } else {
+                                micPermission.launch(android.Manifest.permission.RECORD_AUDIO)
+                            }
                         },
                     ) {
                         androidx.compose.material3.Icon(
@@ -128,6 +161,13 @@ fun QuickAddSheet(
             ParsePreviewRow(parsed)
             Spacer(Modifier.height(10.dp))
             aiMessage?.let { msg ->
+                Text(
+                    msg,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            voiceError?.let { msg ->
                 Text(
                     msg,
                     style = MaterialTheme.typography.bodySmall,
@@ -155,17 +195,21 @@ fun QuickAddSheet(
                 }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                TextButton(
-                    enabled = text.isNotBlank() && !aiBusy,
-                    onClick = { vm.askAi() },
-                ) {
-                    Icon(
-                        Icons.Default.AutoAwesome,
-                        contentDescription = null,
-                        modifier = Modifier.width(16.dp),
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text("AI assist")
+                // Hidden entirely when unconfigured — never render a button that
+                // can only error ("when configured" is the Settings promise).
+                if (aiConfigured) {
+                    TextButton(
+                        enabled = text.isNotBlank() && !aiBusy,
+                        onClick = { vm.askAi() },
+                    ) {
+                        Icon(
+                            Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            modifier = Modifier.width(16.dp),
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text("AI assist")
+                    }
                 }
                 if (aiBusy) {
                     CircularProgressIndicator(Modifier.width(16.dp).height(16.dp))

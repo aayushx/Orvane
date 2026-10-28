@@ -266,24 +266,44 @@ private fun HabitCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Box(
-                Modifier
-                    .size(30.dp)
-                    .clip(CircleShape)
-                    .background(if (row.skippedToday) MaterialTheme.colorScheme.tertiaryContainer else Color.Transparent)
-                    .clickable { onSkip() }
-                    .semantics { contentDescription = "Skip today" },
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    "»",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = if (row.skippedToday) {
-                        MaterialTheme.colorScheme.onTertiaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                )
+            if (row.skippedToday) {
+                // Skipped needs a text affordance, not a color-only state (QA).
+                Row(
+                    Modifier
+                        .clip(RoundedCornerShape(15.dp))
+                        .background(MaterialTheme.colorScheme.tertiaryContainer)
+                        .clickable { onSkip() }
+                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                        .semantics { contentDescription = "Skipped today. Tap to undo" },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "»",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                    )
+                    Spacer(Modifier.width(3.dp))
+                    Text(
+                        "Skipped",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                    )
+                }
+            } else {
+                Box(
+                    Modifier
+                        .size(30.dp)
+                        .clip(CircleShape)
+                        .clickable { onSkip() }
+                        .semantics { contentDescription = "Skip today" },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        "»",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             Spacer(Modifier.width(8.dp))
             Box(
@@ -678,18 +698,18 @@ private fun HabitEditorDialog(
                     Text("Reminder")
                 }
                 if (reminderEnabled) {
-                    Row(
-                        Modifier.horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        for (h in listOf(6, 7, 8, 9, 12, 18, 20)) {
-                            FilterChip(
-                                selected = reminderHour == h,
-                                onClick = { reminderHour = h },
-                                label = { Text("%02d:00".format(h)) },
-                            )
-                        }
-                    }
+                    // Presets + Custom… time picker (Round 2 / B1): any HH:MM
+                    // selectable for a habit's daily reminder.
+                    com.orvane.app.ui.common.CustomTimeChipRow(
+                        presetHours = listOf(6, 7, 8, 9, 12, 18, 20),
+                        currentHour = reminderHour,
+                        currentMinute = reminderMinute,
+                        onSelect = { h, m ->
+                            reminderHour = h
+                            reminderMinute = m
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Switch(checked = nagEnabled, onCheckedChange = { nagEnabled = it })
                         Spacer(Modifier.width(10.dp))

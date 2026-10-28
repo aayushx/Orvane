@@ -9,6 +9,10 @@ import com.orvane.app.data.settings.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 @HiltViewModel
@@ -30,6 +34,16 @@ class QuickAddViewModel @Inject constructor(
 
     /** Pending AI suggestion: title and optional subtasks. */
     val aiSuggestion = MutableStateFlow<AiClient.Suggestion?>(null)
+
+    /**
+     * True only when an AI endpoint AND key are configured. The quick-add sheet
+     * hides the "AI assist" button entirely otherwise — Settings promise the
+     * button only "when configured" (QA: the button was always visible and
+     * always failed without configuration).
+     */
+    val aiConfigured: StateFlow<Boolean> = settingsRepo.settings
+        .map { it.aiBaseUrl.isNotBlank() && it.aiApiKey.isNotBlank() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(4000), false)
 
     init {
         viewModelScope.launch {
@@ -76,6 +90,20 @@ class QuickAddViewModel @Inject constructor(
     fun clearAi() {
         aiMessage.value = null
         aiSuggestion.value = null
+    }
+
+    /**
+     * Wipes the in-progress draft — called on every sheet dismiss/cancel.
+     * (QA: drafts survived dismissal and re-opened with stale, doubled text.
+     * Only a hard process death clears the ViewModel, matching the intended
+     * "retention for process death" behavior.)
+     */
+    fun clearDraft() {
+        text.value = ""
+        parsed.value = null
+        pendingSubtasks = emptyList()
+        aiSuggestion.value = null
+        aiMessage.value = null
     }
 
     /** Saves the quick add into the default list, including AI subtasks if any. */

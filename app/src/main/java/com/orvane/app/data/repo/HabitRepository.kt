@@ -26,6 +26,7 @@ class HabitRepository @Inject constructor(
     private val habitDao: HabitDao,
     private val checkDao: HabitCheckDao,
     private val alarmScheduler: AlarmScheduler,
+    private val settingsRepository: com.orvane.app.data.settings.SettingsRepository,
     @ApplicationContext private val appContext: Context,
 ) {
 
@@ -156,11 +157,19 @@ class HabitRepository @Inject constructor(
 
     suspend fun scheduleAlarms(habitId: String) {
         val habit = habitDao.byId(habitId) ?: return
-        alarmScheduler.scheduleHabit(habit)
+        val s = nagCutoffNow()
+        alarmScheduler.scheduleHabit(habit, s[0], s[1])
     }
 
     suspend fun scheduleAlarms(habit: HabitEntity) {
-        alarmScheduler.scheduleHabit(habit)
+        val s = nagCutoffNow()
+        alarmScheduler.scheduleHabit(habit, s[0], s[1])
+    }
+
+    /** Current evening nag cutoff from Settings — the alarm source of truth. */
+    private suspend fun nagCutoffNow(): IntArray {
+        val s = settingsRepository.current()
+        return intArrayOf(s.habitNagCutoffHour, s.habitNagCutoffMinute)
     }
 
     suspend fun snoozeHabitToday(habitId: String, minutes: Int) {
@@ -172,8 +181,9 @@ class HabitRepository @Inject constructor(
     }
 
     suspend fun rescheduleAll() {
+        val s = settingsRepository.current()
         for (h in habitDao.withReminder() + habitDao.withNag()) {
-            alarmScheduler.scheduleHabit(h)
+            alarmScheduler.scheduleHabit(h, s.habitNagCutoffHour, s.habitNagCutoffMinute)
         }
     }
 
