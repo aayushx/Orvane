@@ -1,7 +1,9 @@
 package com.orvane.app.ui.drawer
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,11 +11,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MergeType
@@ -28,6 +32,8 @@ import androidx.compose.material.icons.filled.EventAvailable
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Inbox
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material.icons.filled.Today
@@ -38,6 +44,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -49,8 +56,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -65,6 +74,7 @@ import com.orvane.app.data.db.StarterColors
 import com.orvane.app.data.db.TagEntity
 import com.orvane.app.data.repo.HabitRepository
 import com.orvane.app.data.repo.TaskRepository
+import com.orvane.app.ui.theme.orvaneTokens
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
@@ -82,6 +92,15 @@ data class DrawerUiState(
     val todayCount: Int = 0,
     val habitsCount: Int = 0,
     val trashCount: Int = 0,
+    /** Smart-list counts derived from the active top-level tasks (Round 2 / C3). */
+    val tomorrowCount: Int = 0,
+    val next7Count: Int = 0,
+    val overdueCount: Int = 0,
+    val allCount: Int = 0,
+    val inboxCount: Int = 0,
+    val completedCount: Int = 0,
+    /** Active task count per user list id, for list row counts (Round 2 / C3). */
+    val listCounts: Map<String, Int> = emptyMap(),
 )
 
 @HiltViewModel
@@ -92,11 +111,56 @@ class DrawerViewModel @Inject constructor(
 
     private val listsAndFolders = combine(repo.observeLists(), repo.observeFolders()) { l, f -> l to f }
     private val tagsAndFilters = combine(repo.observeTags(), repo.observeFilters()) { t, f -> t to f }
+
+    /** Smart-list counts from the active top-level tasks, same bounds as the sections use. */
+    private data class SmartCounts(
+        val tomorrow: Int,
+        val next7: Int,
+        val overdue: Int,
+        val all: Int,
+        val inbox: Int,
+        /** Active task count per list id (user list rows show counts, C3). */
+        val perList: Map<String, Int>,
+    )
+
+    private val smartCounts = repo.observeAllActive().map { actives ->
+        val startToday = com.orvane.app.core.util.Time.startOfToday()
+        val startTomorrow = com.orvane.app.core.util.Time.startOfTomorrow()
+        val endTomorrow = com.orvane.app.core.util.Time.startOfDayEpoch(
+            java.time.LocalDate.now().plusDays(2),
+        )
+        val end7 = com.orvane.app.core.util.Time.startOfDayEpoch(
+            java.time.LocalDate.now().plusDays(7),
+        )
+        SmartCounts(
+            tomorrow = actives.count { it.due != null && it.due >= startTomorrow && it.due < endTomorrow },
+            next7 = actives.count { it.due != null && it.due >= startTomorrow && it.due < end7 },
+            overdue = actives.count { it.due != null && it.due < startToday },
+            all = actives.size,
+            inbox = actives.count { it.listId == null },
+            perList = actives.groupingBy { it.listId }.eachCount()
+                .filterKeys { it != null }
+                .mapKeys { (k, _) -> requireNotNull(k) },
+        )
+    }
+
     private val counts = combine(
         repo.observeTodayCount(),
+        repo.observeCompleted().map { it.size },
+        smartCounts,
         habitRepo.observeActive().map { it.size },
         repo.observeTrash().map { trash -> trash.count { it.parentId == null } },
-    ) { today, habits, trash -> Triple(today, habits, trash) }
+    ) { today, completed, smart, habits, trash ->
+        CountBundle(today, completed, smart, habits, trash)
+    }
+
+    private data class CountBundle(
+        val today: Int,
+        val completed: Int,
+        val smart: SmartCounts,
+        val habits: Int,
+        val trash: Int,
+    )
 
     val state: StateFlow<DrawerUiState> = combine(listsAndFolders, tagsAndFilters, counts) { lf, tf, c ->
         DrawerUiState(
@@ -104,9 +168,16 @@ class DrawerViewModel @Inject constructor(
             folders = lf.second,
             tags = tf.first,
             filters = tf.second,
-            todayCount = c.first,
-            habitsCount = c.second,
-            trashCount = c.third,
+            todayCount = c.today,
+            habitsCount = c.habits,
+            trashCount = c.trash,
+            tomorrowCount = c.smart.tomorrow,
+            next7Count = c.smart.next7,
+            overdueCount = c.smart.overdue,
+            allCount = c.smart.all,
+            inboxCount = c.smart.inbox,
+            completedCount = c.completed,
+            listCounts = c.smart.perList,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(4000), DrawerUiState())
 
@@ -162,31 +233,14 @@ fun DrawerContent(
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = 24.dp),
         ) {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    Modifier
-                        .size(34.dp)
-                        .background(MaterialTheme.colorScheme.primary, CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text("O", color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.titleLarge)
-                }
-                Spacer(Modifier.width(12.dp))
-                Text("Orvane", style = MaterialTheme.typography.titleLarge)
-            }
-            HorizontalDivider()
+            DrawerHeader()
             SmartRow("Today", SmartList.TODAY, Icons.Default.Today, currentKey, state.todayCount, onOpenList)
-            SmartRow("Tomorrow", SmartList.TOMORROW, Icons.Default.DateRange, currentKey, null, onOpenList)
-            SmartRow("Next 7 days", SmartList.NEXT_7_DAYS, Icons.Default.CalendarViewDay, currentKey, null, onOpenList)
-            SmartRow("Overdue", SmartList.OVERDUE, Icons.Default.EventAvailable, currentKey, null, onOpenList)
-            SmartRow("All tasks", SmartList.ALL, Icons.Default.AllInbox, currentKey, null, onOpenList)
-            SmartRow("Inbox", SmartList.INBOX, Icons.Default.Inbox, currentKey, null, onOpenList)
-            SmartRow("Completed", SmartList.COMPLETED, Icons.Default.DoneAll, currentKey, null, onOpenList)
+            SmartRow("Tomorrow", SmartList.TOMORROW, Icons.Default.DateRange, currentKey, state.tomorrowCount, onOpenList)
+            SmartRow("Next 7 days", SmartList.NEXT_7_DAYS, Icons.Default.CalendarViewDay, currentKey, state.next7Count, onOpenList)
+            SmartRow("Overdue", SmartList.OVERDUE, Icons.Default.EventAvailable, currentKey, state.overdueCount, onOpenList)
+            SmartRow("All tasks", SmartList.ALL, Icons.Default.AllInbox, currentKey, state.allCount, onOpenList)
+            SmartRow("Inbox", SmartList.INBOX, Icons.Default.Inbox, currentKey, state.inboxCount, onOpenList)
+            SmartRow("Completed", SmartList.COMPLETED, Icons.Default.DoneAll, currentKey, state.completedCount, onOpenList)
             HorizontalDivider(Modifier.padding(vertical = 6.dp))
 
             if (state.folders.isNotEmpty()) {
@@ -212,7 +266,7 @@ fun DrawerContent(
                     title = list.name,
                     icon = null,
                     isSelected = currentKey == "list:${list.id}",
-                    count = null,
+                    count = state.listCounts[list.id],
                     leadingTint = Color(list.color),
                     onOpenList,
                     onEdit = { listDialog = ManageTarget.ListTarget(list) },
@@ -235,12 +289,7 @@ fun DrawerContent(
             }
 
             if (state.tags.isNotEmpty()) {
-                SectionLabel("Tags")
-                Column(Modifier.padding(start = 16.dp)) {
-                    for (tag in state.tags.take(12)) {
-                        ManageableTagRow(tag, onEdit = { tagDialogTag = tag })
-                    }
-                }
+                CollapsibleTagsSection(state.tags, onEditTag = { tagDialogTag = it })
             }
 
             HorizontalDivider(Modifier.padding(vertical = 6.dp))
@@ -605,6 +654,109 @@ private fun ColorSwatch(color: Int, selected: Boolean, onSelect: () -> Unit) {
 
 /* ---------- Shared row machinery ---------- */
 
+/**
+ * Branded tonal header (Round 2 / C3): wordmark tile + "Orvane" + app version.
+ * No account UI — the app is offline-first and has no accounts.
+ */
+@Composable
+private fun DrawerHeader() {
+    val tokens = orvaneTokens()
+    val ctx = LocalContext.current
+    val version = remember(ctx) {
+        runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }
+            .getOrNull()
+    }
+    Surface(
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        modifier = Modifier
+            .padding(
+                start = tokens.spacing.md,
+                end = tokens.spacing.md,
+                top = tokens.spacing.md,
+                bottom = tokens.spacing.sm,
+            )
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(tokens.corners.card),
+    ) {
+        Row(
+            Modifier.padding(horizontal = tokens.spacing.md, vertical = tokens.spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier
+                    .size(34.dp)
+                    .background(MaterialTheme.colorScheme.primary, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    "O",
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    style = MaterialTheme.typography.titleLarge,
+                )
+            }
+            Spacer(Modifier.width(tokens.spacing.md))
+            Column {
+                Text("Orvane", style = MaterialTheme.typography.titleLarge)
+                if (version != null) {
+                    Text(
+                        "v$version",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Tags section that folds down to a one-line header (Round 2 / C3). */
+@Composable
+private fun CollapsibleTagsSection(
+    tags: List<TagEntity>,
+    onEditTag: (TagEntity) -> Unit,
+) {
+    var expanded by rememberSaveable { mutableStateOf(true) }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable { expanded = !expanded }
+            .padding(start = 16.dp, end = 8.dp, top = 10.dp, bottom = 2.dp)
+            .semantics {
+                contentDescription = if (expanded) "Collapse tags" else "Expand tags"
+            },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            "Tags",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(
+            "${tags.size}",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.weight(1f))
+        Icon(
+            if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(16.dp),
+        )
+    }
+    if (expanded) {
+        Column(Modifier.padding(start = 16.dp)) {
+            for (tag in tags) {
+                ManageableTagRow(tag, onEdit = { onEditTag(tag) })
+            }
+        }
+    } else {
+        Spacer(Modifier.height(4.dp))
+    }
+}
+
 @Composable
 private fun SmartRow(
     title: String,
@@ -670,8 +822,11 @@ private fun ManageableTagRow(tag: TagEntity, onEdit: () -> Unit) {
 
 /**
  * A single selectable drawer item; [icon] null means a colored list dot.
- * When [onEdit] is set a trailing ⋮ opens the entity's manage menu.
+ * Selected rows render as a rounded pill with container color (M3 style,
+ * not the old full-width gray bar). Long-press opens the manage menu when
+ * [onEdit] is set (C3); the trailing ⋮ stays as the discoverable affordance.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun DrawerRow(
     key: String,
@@ -683,12 +838,23 @@ private fun DrawerRow(
     onOpenList: (String) -> Unit,
     onEdit: (() -> Unit)? = null,
 ) {
+    val tokens = orvaneTokens()
+    val selectedText = MaterialTheme.colorScheme.onSecondaryContainer
     Row(
         Modifier
             .fillMaxWidth()
-            .clickable { onOpenList(key) }
-            .background(if (isSelected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
-            .padding(start = 8.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
+            .padding(horizontal = tokens.spacing.sm)
+            .heightIn(min = 48.dp)
+            .clip(RoundedCornerShape(50))
+            .background(
+                if (isSelected) MaterialTheme.colorScheme.secondaryContainer
+                else Color.Transparent,
+            )
+            .combinedClickable(
+                onClick = { onOpenList(key) },
+                onLongClick = onEdit,
+            )
+            .padding(start = tokens.spacing.md, end = tokens.spacing.xs),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) {
@@ -696,7 +862,7 @@ private fun DrawerRow(
                 icon,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp),
-                tint = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else leadingTint,
+                tint = if (isSelected) selectedText else leadingTint,
             )
         } else {
             Box(
@@ -710,7 +876,7 @@ private fun DrawerRow(
         Text(
             title,
             style = MaterialTheme.typography.bodyMedium,
-            color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
+            color = if (isSelected) selectedText else MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f),
         )
         if (count != null) {
