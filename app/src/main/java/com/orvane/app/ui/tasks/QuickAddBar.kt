@@ -35,7 +35,9 @@ internal fun QuickAddBar() {
     val vm: QuickAddViewModel = hiltViewModel()
     val text by vm.text.collectAsState()
     val parsed by vm.parsed.collectAsState()
-    val canSave = parsed?.title?.isBlank() == false
+    // Save is allowed for all-metadata inputs too ("tomorrow 5pm !High #work"):
+    // the repo falls back to the raw text as the title (Phase D fix).
+    val canSave = parsed != null && text.isNotBlank()
 
     Column(
         Modifier

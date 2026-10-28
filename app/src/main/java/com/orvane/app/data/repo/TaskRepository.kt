@@ -212,12 +212,16 @@ class TaskRepository @Inject constructor(
         if (clean.isEmpty()) return@withContext null
         val now = System.currentTimeMillis()
         val parsed = NaturalLanguageDateParser.parse(clean)
-        if (parsed.title.isBlank()) return@withContext null
+        // An all-metadata input ("tomorrow 5pm !High #work") consumes every
+        // token as date/priority/tag and would previously return null — the
+        // task was silently never created (Phase D). TickTick-style fallback:
+        // keep the raw text as the title when parsing leaves nothing behind.
+        val fallbackTitle = parsed.title.ifBlank { clean }
         val targetList = listId ?: settingsRepository.current().defaultListId
         val task = TaskEntity(
             id = newId(),
             parentId = isSubtaskOf,
-            title = parsed.title,
+            title = fallbackTitle,
             due = parsed.due?.toInstant()?.toEpochMilli(),
             isDueAllDay = parsed.isAllDay,
             priority = parsed.priority,
