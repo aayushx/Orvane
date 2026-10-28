@@ -253,8 +253,8 @@ private fun FeedsSection(state: CalendarUiState, vm: CalendarViewModel) {
                         )
                     }
                 }
-                IconButton(onClick = { vm.removeFeed(feed.id) }, modifier = Modifier.size(30.dp)) {
-                    Icon(Icons.Default.Close, contentDescription = "Remove feed", modifier = Modifier.size(16.dp))
+                IconButton(onClick = { vm.removeFeed(feed.id) }, modifier = Modifier.size(48.dp)) {
+                    Icon(Icons.Default.Close, contentDescription = "Remove feed", modifier = Modifier.size(18.dp))
                 }
             }
         }
@@ -888,7 +888,7 @@ private fun EventRow(event: CalendarEventEntity, onDelete: (String) -> Unit = {}
             )
         }
         Spacer(Modifier.width(tokens.spacing.sm))
-        IconButton(onClick = { onDelete(event.id) }, modifier = Modifier.size(28.dp)) {
+        IconButton(onClick = { onDelete(event.id) }, modifier = Modifier.size(48.dp)) {
             Icon(
                 Icons.Default.Close,
                 contentDescription = "Remove event",

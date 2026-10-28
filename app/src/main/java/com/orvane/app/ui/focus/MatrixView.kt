@@ -112,6 +112,7 @@ fun MatrixView(
     val chipBounds = remember { mutableMapOf<String, Rect>() }
     val quadrantBounds = remember { mutableMapOf<MatrixQuadrant, Rect>() }
     val scope = rememberCoroutineScope()
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
     var expanded by remember { mutableStateOf<MatrixQuadrant?>(null) }
 
     fun hitTest(root: Offset): MatrixQuadrant? = hitQuadrant(quadrantBounds, root)
@@ -121,6 +122,8 @@ fun MatrixView(
         val target = drag.target
         drag.id = null
         if (id != null && target != null) {
+            // Haptic tick on quadrant drop (Round 2 / C6).
+            haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
             scope.launch { vm.commitMatrixMove(id, target) }
         }
     }

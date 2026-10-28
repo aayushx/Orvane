@@ -168,6 +168,7 @@ private fun CheckChip(
         animationSpec = tween(tokens.motion.shortMs, easing = tokens.motion.emphasizedEasing),
         label = "checkAlpha",
     )
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
     val checkColor = MaterialTheme.colorScheme.primary
     val chipColor = MaterialTheme.colorScheme.surfaceContainerHighest
     Box(
@@ -181,7 +182,13 @@ private fun CheckChip(
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
             .combinedClickable(
                 enabled = enabled,
-                onClick = onChange,
+                onClick = {
+                    // Haptic tick on completing a task (Round 2 / C6).
+                    if (!completed) {
+                        haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                    }
+                    onChange()
+                },
                 onLongClick = onLongPress,
             )
             .semantics {

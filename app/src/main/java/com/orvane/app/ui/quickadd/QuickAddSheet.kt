@@ -49,6 +49,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.orvane.app.core.ai.AiClient
 import com.orvane.app.core.nl.NaturalLanguageDateParser
 import com.orvane.app.ui.common.Format
+import com.orvane.app.ui.common.GrabHandle
+import com.orvane.app.ui.theme.orvaneTokens
+import androidx.compose.foundation.shape.RoundedCornerShape
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,6 +59,7 @@ fun QuickAddSheet(
     onDismiss: () -> Unit,
     vm: QuickAddViewModel = hiltViewModel(),
 ) {
+    val tokens = orvaneTokens()
     val text by vm.text.collectAsState()
     val parsed by vm.parsed.collectAsState()
     val aiBusy by vm.aiBusy.collectAsState()
@@ -109,16 +113,17 @@ fun QuickAddSheet(
 
     val focusRequester = remember { FocusRequester() }
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+    ModalBottomSheet(onDismissRequest = onDismiss, shape = RoundedCornerShape(topStart = tokens.corners.sheet, topEnd = tokens.corners.sheet)) {
+        GrabHandle(Modifier.align(Alignment.CenterHorizontally))
+        Column(Modifier.padding(horizontal = tokens.spacing.lg, vertical = tokens.spacing.sm)) {
             Text("Quick add", style = MaterialTheme.typography.titleLarge)
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(tokens.spacing.xs))
             Text(
                 "Try “Pay rent tomorrow 5pm !High #work”. Tap the mic to add by voice.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(tokens.spacing.md))
             OutlinedTextField(
                 value = text,
                 onValueChange = { vm.text.value = it },
@@ -157,9 +162,9 @@ fun QuickAddSheet(
             // after the caller composes; this effect only runs once this content is
             // actually in the tree, so the focus target exists by then.
             LaunchedEffect(Unit) { focusRequester.requestFocus() }
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(tokens.spacing.lg))
             ParsePreviewRow(parsed)
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(tokens.spacing.lg))
             aiMessage?.let { msg ->
                 Text(
                     msg,
@@ -185,7 +190,7 @@ fun QuickAddSheet(
                     for (sub in suggestion.subtasks) {
                         Text("• $sub", style = MaterialTheme.typography.bodySmall)
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(tokens.spacing.sm)) {
                         TextButton(onClick = {
                             vm.applySuggestion(suggestion.title, suggestion.subtasks)
                             vm.clearAi()
@@ -214,13 +219,13 @@ fun QuickAddSheet(
                 if (aiBusy) {
                     CircularProgressIndicator(Modifier.width(16.dp).height(16.dp))
                 }
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(tokens.spacing.sm))
                 Button(
                     onClick = { vm.save(onSaved = onDismiss) },
                     enabled = parsed?.title?.isBlank() == false,
                 ) { Text("Add task") }
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(tokens.spacing.lg))
         }
     }
 }
@@ -230,6 +235,7 @@ private fun Modifier.semanticsVoiceDescription(): Modifier = this
 /** Live NL parsing preview while typing. */
 @Composable
 private fun ParsePreviewRow(parsed: NaturalLanguageDateParser.Parsed?) {
+    val tokens = orvaneTokens()
     Row(
         Modifier
             .fillMaxWidth()
@@ -239,7 +245,7 @@ private fun ParsePreviewRow(parsed: NaturalLanguageDateParser.Parsed?) {
         val title = parsed?.title?.takeIf { it.isNotBlank() }
         if (title != null) {
             AssistChip(onClick = {}, label = { Text("\u270E " + title.take(24)) })
-            Spacer(Modifier.width(6.dp))
+            Spacer(Modifier.width(tokens.spacing.xs))
         }
         val due = parsed?.due
         if (due != null) {
@@ -253,15 +259,15 @@ private fun ParsePreviewRow(parsed: NaturalLanguageDateParser.Parsed?) {
                     )
                 },
             )
-            Spacer(Modifier.width(6.dp))
+            Spacer(Modifier.width(tokens.spacing.xs))
         }
         if (parsed != null && parsed.priority > 0) {
             AssistChip(onClick = {}, label = { Text("\uD83D\uDEA9 " + Format.priorityName(parsed.priority)) })
-            Spacer(Modifier.width(6.dp))
+            Spacer(Modifier.width(tokens.spacing.xs))
         }
         for (tag in parsed?.tags ?: emptyList()) {
             AssistChip(onClick = {}, label = { Text("#$tag") })
-            Spacer(Modifier.width(6.dp))
+            Spacer(Modifier.width(tokens.spacing.xs))
         }
     }
 }

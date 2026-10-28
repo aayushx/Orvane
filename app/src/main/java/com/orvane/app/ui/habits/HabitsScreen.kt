@@ -649,10 +649,14 @@ private fun HabitCheckButton(
             checkScale.snapTo(1f)
         }
     }
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
     Box(
         Modifier
-            .size(34.dp)
-            .clickable { onCheck() }
+            .size(48.dp) // 48dp minimum interaction target (Round 2 / C6)
+            .clickable {
+                haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                onCheck()
+            }
             .semantics {
                 contentDescription = if (checked) "Done today, tap to undo" else "Mark habit done"
             },

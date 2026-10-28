@@ -9,15 +9,27 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ColorLens
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Backup
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.SelfImprovement
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -190,94 +202,130 @@ fun SettingsScreen(
             )
         },
     ) { pad ->
-        LazyColumn(Modifier.padding(pad).padding(16.dp)) {
+        LazyColumn(Modifier.padding(pad).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {
-                SectionTitle("Theme")
-                ThemeRow(s, vm)
-                ToggleRow("Dynamic color (Material You)", s.dynamicColor) { vm.setDynamicColor(it) }
-                HorizontalDivider(Modifier.padding(vertical = 10.dp))
+                SettingsCard("Theme", Icons.Default.ColorLens) {
+                    ThemeRow(s, vm)
+                    ToggleRow("Dynamic color (Material You)", s.dynamicColor) { vm.setDynamicColor(it) }
+                }
             }
             item {
-                SectionTitle("Calendar")
-                Text("First day of week", style = MaterialTheme.typography.bodyMedium)
-                // Segmented row with equal weights keeps all 7 chips on one line
-                // at any width and font scale (QA: "Sun" wrapped into 3 lines).
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(top = 6.dp)) {
-                    val days = listOf("Mon" to 1, "Tue" to 2, "Wed" to 3, "Thu" to 4, "Fri" to 5, "Sat" to 6, "Sun" to 7)
-                    days.forEachIndexed { index, (label, value) ->
-                        SegmentedButton(
-                            selected = s.firstDayOfWeek == value,
-                            onClick = { vm.setFirstDay(value) },
-                            shape = SegmentedButtonDefaults.itemShape(index = index, count = days.size),
-                        ) {
-                            Text(label, maxLines = 1)
+                SettingsCard("Calendar", Icons.Default.CalendarMonth) {
+                    Text("First day of week", style = MaterialTheme.typography.bodyMedium)
+                    // Segmented row with equal weights keeps all 7 chips on one line
+                    // at any width and font scale (QA: "Sun" wrapped into 3 lines).
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(top = 6.dp)) {
+                        val days = listOf("Mon" to 1, "Tue" to 2, "Wed" to 3, "Thu" to 4, "Fri" to 5, "Sat" to 6, "Sun" to 7)
+                        days.forEachIndexed { index, (label, value) ->
+                            SegmentedButton(
+                                selected = s.firstDayOfWeek == value,
+                                onClick = { vm.setFirstDay(value) },
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = days.size),
+                            ) {
+                                Text(label, maxLines = 1)
+                            }
                         }
                     }
                 }
-                HorizontalDivider(Modifier.padding(vertical = 10.dp))
             }
             item {
-                SectionTitle("Focus")
-                PomodoroRow(s.pomodoro, onSet = { vm.setPomodoro(it) })
-                HorizontalDivider(Modifier.padding(vertical = 10.dp))
+                SettingsCard("Focus", Icons.Default.Timer) {
+                    PomodoroRow(s.pomodoro, onSet = { vm.setPomodoro(it) })
+                }
             }
             item {
-                SectionTitle("Notifications")
-                ToggleRow("Sounds", s.soundsEnabled) { vm.setSounds(it) }
-                ToggleRow("Vibration", s.vibrationEnabled) { vm.setVibration(it) }
-                Text("Snooze presets (minutes on task reminders)", style = MaterialTheme.typography.bodyMedium)
-                SnoozePresetRow(
-                    presets = s.snoozePresets,
-                    onUpdate = { vm.setSnoozePresets(it) },
-                )
-                HorizontalDivider(Modifier.padding(vertical = 10.dp))
+                SettingsCard("Notifications", Icons.Default.Notifications) {
+                    ToggleRow("Sounds", s.soundsEnabled) { vm.setSounds(it) }
+                    ToggleRow("Vibration", s.vibrationEnabled) { vm.setVibration(it) }
+                    Text("Snooze presets (minutes on task reminders)", style = MaterialTheme.typography.bodyMedium)
+                    SnoozePresetRow(
+                        presets = s.snoozePresets,
+                        onUpdate = { vm.setSnoozePresets(it) },
+                    )
+                }
             }
             item {
-                SectionTitle("Habits")
-                Text("Evening nag cutoff", style = MaterialTheme.typography.bodyMedium)
-                Text(
-                    "Unchecked habits are re-reminded at this time.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                com.orvane.app.ui.common.CustomTimeChipRow(
-                    presetHours = listOf(19, 20, 21, 22),
-                    currentHour = s.habitNagCutoffHour,
-                    currentMinute = s.habitNagCutoffMinute,
-                    onSelect = { h, m -> vm.setNagCutoff(h, m) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 6.dp),
-                )
-                HorizontalDivider(Modifier.padding(vertical = 10.dp))
+                SettingsCard("Habits", Icons.Default.Alarm) {
+                    Text("Evening nag cutoff", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        "Unchecked habits are re-reminded at this time.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    com.orvane.app.ui.common.CustomTimeChipRow(
+                        presetHours = listOf(19, 20, 21, 22),
+                        currentHour = s.habitNagCutoffHour,
+                        currentMinute = s.habitNagCutoffMinute,
+                        onSelect = { h, m -> vm.setNagCutoff(h, m) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 6.dp),
+                    )
+                }
             }
             item {
-                SectionTitle("App lock")
-                AppLockSection(s, vm)
-                HorizontalDivider(Modifier.padding(vertical = 10.dp))
+                SettingsCard("App lock", Icons.Default.Lock) {
+                    AppLockSection(s, vm)
+                }
             }
             item {
-                SectionTitle("Backup")
-                BackupSection(vm)
-                HorizontalDivider(Modifier.padding(vertical = 10.dp))
+                SettingsCard("Backup", Icons.Default.Backup) {
+                    BackupSection(vm)
+                }
             }
             item {
-                SectionTitle("AI assistant (optional)")
-                AiSection(s, vm)
-                HorizontalDivider(Modifier.padding(vertical = 10.dp))
+                SettingsCard("AI assistant (optional)", Icons.Default.SelfImprovement) {
+                    AiSection(s, vm)
+                }
             }
             item {
-                SectionTitle("About")
-                Text("Orvane — offline-first tasks, calendar, habits and focus.", style = MaterialTheme.typography.bodyMedium)
-                Text("v1.0.0", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                SettingsCard("About", Icons.Default.Info) {
+                    Text("Orvane — offline-first tasks, calendar, habits and focus.", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        rememberVersion(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }
 }
 
+/** Real package version, falling back to a plain label off the play path. */
 @Composable
-private fun SectionTitle(text: String) {
-    Text(text, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+private fun rememberVersion(): String {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    return remember(ctx) {
+        runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }
+            .getOrNull()?.let { "v$it" } ?: "v1.0.0"
+    }
+}
+
+/**
+ * Settings section as a rounded card with a leading icon on its title row
+ * (Round 2 / C6): one icon family, calm tonal grouping, no divider chains.
+ */
+@Composable
+private fun SettingsCard(
+    title: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
+) {
+    androidx.compose.material3.Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+    ) {
+        androidx.compose.foundation.layout.Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+            }
+            Spacer(Modifier.height(8.dp))
+            androidx.compose.foundation.layout.Column(content = content)
+        }
+    }
 }
 
 /**

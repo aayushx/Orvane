@@ -4,6 +4,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -424,7 +425,7 @@ private fun ListEditorDialog(
                     label = { Text("Name") },
                 )
                 Text("Color", style = MaterialTheme.typography.labelMedium)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(0.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
                     for (c in StarterColors.LIST_COLORS) {
                         ColorSwatch(c, selected = c == color, onSelect = { color = c })
                     }
@@ -634,14 +635,19 @@ private fun TagManageDialog(
 @Composable
 private fun ColorSwatch(color: Int, selected: Boolean, onSelect: () -> Unit) {
     val desc = "Color ${Integer.toHexString(color)}"
+    // 48dp touch target with a 28dp visual dot (48dp minimum, Round 2 / C6).
     Box(
         Modifier
-            .size(28.dp)
+            .size(48.dp)
             .semantics { contentDescription = if (selected) "$desc, selected" else desc }
-            .background(Color(color), CircleShape)
             .clickable(onClick = onSelect),
         contentAlignment = Alignment.Center,
     ) {
+        Box(
+            Modifier
+                .size(28.dp)
+                .background(Color(color), CircleShape),
+        )
         if (selected) {
             Box(
                 Modifier
@@ -811,11 +817,11 @@ private fun ManageableTagRow(tag: TagEntity, onEdit: () -> Unit) {
         Text(tag.name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
         IconButton(
             modifier = Modifier
-                .size(24.dp)
+                .size(48.dp)
                 .semantics { contentDescription = "Manage tag ${tag.name}" },
             onClick = onEdit,
         ) {
-            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(14.dp))
+            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
         }
     }
 }
@@ -889,11 +895,11 @@ private fun DrawerRow(
         if (onEdit != null) {
             IconButton(
                 modifier = Modifier
-                    .size(28.dp)
+                    .size(48.dp)
                     .semantics { contentDescription = "Manage $title" },
                 onClick = onEdit,
             ) {
-                Icon(Icons.Default.MoreVert, contentDescription = null, modifier = Modifier.size(16.dp))
+                Icon(Icons.Default.MoreVert, contentDescription = null, modifier = Modifier.size(18.dp))
             }
         }
     }

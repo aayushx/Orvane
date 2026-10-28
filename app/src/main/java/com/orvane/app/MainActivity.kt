@@ -59,6 +59,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Easing
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -162,6 +171,9 @@ class ShellViewModel @Inject constructor(
 
     suspend fun verifyPin(pin: String): Boolean = settingsRepo.pinMatches(pin)
 }
+
+/** Shared-axis emphasized easing for root transitions (Round 2 / C6). */
+private val EmphasizedEasing: Easing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -294,28 +306,46 @@ private fun AppRoot(openQuickAddOnStart: Boolean) {
             containerColor = MaterialTheme.colorScheme.background,
         ) { pad ->
             Box(Modifier.padding(pad).fillMaxSize()) {
-                when {
-                    openTaskId != null -> {
-                        TaskDetailScreen(
-                            taskId = openTaskId!!,
-                            snackbarHostState = snackbarHostState,
-                            onBack = { openTaskId = null },
+                // Shared-axis feel (Round 2 / C6): fade + subtle slide between
+                // tabs and pushed screens, respecting the disabled state.
+                val primaryKey = when {
+                    openTaskId != null -> "task:$openTaskId"
+                    showSettings -> "settings"
+                    showSearch -> "search"
+                    else -> "tab:$tab"
+                }
+                AnimatedContent(
+                    targetState = primaryKey,
+                    transitionSpec = {
+                        (fadeIn(tween(250, easing = EmphasizedEasing)) +
+                            slideInVertically(tween(250, easing = EmphasizedEasing)) { it / 8 }) togetherWith
+                            (fadeOut(tween(250, easing = EmphasizedEasing)) +
+                            slideOutVertically(tween(250, easing = EmphasizedEasing)) { -it / 8 })
+                    },
+                    label = "rootNav",
+                ) { key ->
+                    when {
+                        key.startsWith("task:") -> {
+                            TaskDetailScreen(
+                                taskId = key.removePrefix("task:"),
+                                snackbarHostState = snackbarHostState,
+                                onBack = { openTaskId = null },
+                            )
+                        }
+                        key == "settings" -> SettingsScreen(onBack = { showSettings = false })
+                        key == "search" -> SearchScreen(
+                            onBack = { showSearch = false },
+                            onOpenTask = { id -> showSearch = false; openTaskId = id },
                         )
-                    }
-                    showSettings -> SettingsScreen(onBack = { showSettings = false })
-                    showSearch -> SearchScreen(
-                        onBack = { showSearch = false },
-                        onOpenTask = { id -> showSearch = false; openTaskId = id },
-                    )
-                    else -> when (tab) {
-                        Tab.Today -> TasksScreen(
+                        key == "tab:" + Tab.Today -> TasksScreen(
                             vm = vm,
                             snackbarHostState = snackbarHostState,
                             onOpenTask = { id -> openTaskId = id },
                         )
-                        Tab.Calendar -> CalendarScreen()
-                        Tab.Habits -> HabitsScreen()
-                        Tab.Focus -> FocusScreen()
+                        key == "tab:" + Tab.Calendar -> CalendarScreen()
+                        key == "tab:" + Tab.Habits -> HabitsScreen()
+                        key == "tab:" + Tab.Focus -> FocusScreen()
+                        else -> {}
                     }
                 }
             }
