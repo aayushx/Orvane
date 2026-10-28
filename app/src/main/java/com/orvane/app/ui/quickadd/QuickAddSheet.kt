@@ -255,7 +255,7 @@ private fun ParsePreviewRow(parsed: NaturalLanguageDateParser.Parsed?) {
                 label = {
                     Text(
                         "\uD83D\uDCC5 " +
-                            Format.dueChip(due.toInstant().toEpochMilli(), !allDay),
+                            Format.dueChip(due.toInstant().toEpochMilli(), allDay),
                     )
                 },
             )

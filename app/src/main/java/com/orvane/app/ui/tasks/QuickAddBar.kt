@@ -95,7 +95,7 @@ private fun previewLine(parsed: NaturalLanguageDateParser.Parsed?): String? {
     if (parsed == null) return null
     val parts = mutableListOf<String>()
     parsed.due?.let {
-        parts.add("→ " + Format.dueChip(it.toInstant().toEpochMilli(), !parsed.isAllDay))
+        parts.add("→ " + Format.dueChip(it.toInstant().toEpochMilli(), parsed.isAllDay))
     }
     if (parsed.priority > 0) parts.add("!${Format.priorityName(parsed.priority)}")
     for (tag in parsed.tags) parts.add("#$tag")
