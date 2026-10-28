@@ -183,6 +183,17 @@ class FocusViewModel @Inject constructor(
 
     // ---- Control ----
 
+    /** Applies the drop target's (priority/due) semantics, breaks nothing else. */
+    fun commitMatrixMove(taskId: String, quadrant: MatrixQuadrant) {
+        viewModelScope.launch {
+            taskRepo.applyMatrixQuadrant(
+                taskId,
+                @Suppress("DEPRECATION") com.orvane.app.data.repo.TaskRepository.MatrixQuadrant.valueOf(quadrant.name),
+            )
+            refresh.value += 1
+        }
+    }
+
     fun setPomodoro(config: PomodoroConfig) {
         viewModelScope.launch { settingsRepo.setPomodoroConfig(config) }
     }

@@ -85,7 +85,7 @@ fun FocusScreen(vm: FocusViewModel = hiltViewModel()) {
         }
         when (tab) {
             "Stats" -> StatsView(state)
-            "Matrix" -> MatrixView(state)
+            "Matrix" -> MatrixView(state.matrix, vm)
             "Today plan" -> TodayPlanView(state, vm)
             else -> TimerView(state, noise, vm) { setupOpen = true }
         }
@@ -306,65 +306,6 @@ private fun hours(seconds: Long): String {
         h > 0 -> "${h}h ${m}m"
         m > 0 -> "${m}m"
         else -> "${seconds}s"
-    }
-}
-
-// ---------------- Matrix ----------------
-
-@Composable
-private fun MatrixView(state: FocusUiState) {
-    LazyColumn(Modifier.fillMaxSize().padding(12.dp)) {
-        item {
-            Text(
-                "Eisenhower matrix — urgent means due within 2 days; important means Medium/High priority.",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 4.dp),
-            )
-            Spacer(Modifier.height(8.dp))
-        }
-        items(state.matrix, key = { it.title }) { cell ->
-            Card(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                ),
-            ) {
-                Column(Modifier.padding(10.dp)) {
-                    Text(
-                        cell.title + " (${cell.tasks.size})",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    if (cell.tasks.isEmpty()) {
-                        Text(
-                            "—",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    } else {
-                        for (t in cell.tasks.take(6)) {
-                            Text(
-                                "• " + t.title,
-                                style = MaterialTheme.typography.bodyMedium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                        if (cell.tasks.size > 6) {
-                            Text(
-                                "…and ${cell.tasks.size - 6} more",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
-            }
-        }
-        item { Spacer(Modifier.height(140.dp)) }
     }
 }
 

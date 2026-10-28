@@ -643,6 +643,64 @@ class TaskRepository @Inject constructor(
      * the rename becomes a MERGE: refs of [tagId] move onto the existing tag
      * and the duplicate is removed (QA item A8 semantics).
      */
+    // ---------- Eisenhower matrix (Round 2 / B3) ----------
+
+    /** The four matrix buckets; edges of the grid. */
+    enum class MatrixQuadrant { DO_FIRST, SCHEDULE, DELEGATE, LATER }
+
+    /** Bucket predicate: urgent = due falls within the next 2 days (oday+2 boundary). */
+    fun isUrgent(task: TaskEntity, nowMillis: Long = System.currentTimeMillis()): Boolean =
+        task.due != null && task.due >= nowMillis - 24L * 3600_000 &&
+            task.due < Time.startOfDayEpoch(java.time.LocalDate.now().plusDays(2))
+
+    /** Bucket predicate: important = Medium/High priority. */
+    fun isImportant(task: TaskEntity): Boolean =
+        task.priority >= com.orvane.app.data.db.TaskPriority.MEDIUM
+
+    /** Canonical "urgent" due (today 23:59). */
+    private fun endOfTodayDue(): Long = Time.at(java.time.LocalDate.now(), 23, 59)
+
+    /** Canonical "not urgent" due (7 days out, midnight). */
+    private fun nextWeekDue(): Long = Time.startOfDayEpoch(java.time.LocalDate.now().plusDays(7))
+
+    /** Applies the (priority, due) changes implied by dropping a task in a quadrant. */
+    suspend fun applyMatrixQuadrant(taskId: String, quadrant: MatrixQuadrant) = withContext(Dispatchers.IO) {
+        val t = taskDao.byId(taskId) ?: return@withContext
+        val p = com.orvane.app.data.db.TaskPriority
+        var dueChanges: Long? = null
+        when (quadrant) {
+            MatrixQuadrant.DO_FIRST -> {
+                setPriority(taskId, maxOf(t.priority, p.MEDIUM))
+                // Must be URGENT: collapse to today's end-of-day.
+                if (t.due == null || t.due >= Time.startOfDayEpoch(java.time.LocalDate.now().plusDays(2))) {
+                    setDue(taskId, endOfTodayDue())
+                }
+            }
+            MatrixQuadrant.SCHEDULE -> {
+                setPriority(taskId, maxOf(t.priority, p.MEDIUM))
+                // NOT urgent: push today/overdue dues to next week.
+                if (t.due != null && t.due < Time.startOfDayEpoch(java.time.LocalDate.now().plusDays(2))) {
+                    setDue(taskId, nextWeekDue())
+                }
+            }
+            MatrixQuadrant.DELEGATE -> {
+                // NOT important: demote to Low.
+                setPriority(taskId, p.LOW)
+                if (t.due == null || t.due >= Time.startOfDayEpoch(java.time.LocalDate.now().plusDays(2))) {
+                    setDue(taskId, endOfTodayDue())
+                }
+            }
+            MatrixQuadrant.LATER -> {
+                // Neither urgent nor important: demote, push out urgent dues.
+                setPriority(taskId, minOf(t.priority, p.LOW))
+                if (t.due != null && t.due < Time.startOfDayEpoch(java.time.LocalDate.now().plusDays(2))) {
+                    setDue(taskId, nextWeekDue())
+                }
+            }
+        }
+        OrvaneWidgets.refreshAll(appContext)
+    }
+
     suspend fun renameTag(tagId: String, name: String) {
         val clean = name.trim().removePrefix("#")
         if (clean.isEmpty()) return
