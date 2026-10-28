@@ -35,6 +35,8 @@ data class TasksUiState(
     val sections: List<TaskSection> = emptyList(),
     val completed: List<TaskEntity> = emptyList(),
     val listNames: Map<String, String> = emptyMap(),
+    val listColors: Map<String, Int> = emptyMap(),
+    val taskTagNames: Map<String, List<String>> = emptyMap(),
     val childCounts: Map<String, Pair<Int, Int>> = emptyMap(),
     val totalActive: Int = 0,
 )
@@ -48,6 +50,7 @@ private data class Snapshot(
     val lists: List<ListEntity> = emptyList(),
     val folders: List<FolderEntity> = emptyList(),
     val filters: List<FilterEntity> = emptyList(),
+    val tags: List<com.orvane.app.data.db.TagEntity> = emptyList(),
     val tagRefs: Map<String, List<String>> = emptyMap(),
     val sortMap: Map<String, String> = emptyMap(),
 )
@@ -78,6 +81,7 @@ class TasksViewModel @Inject constructor(
         .combine(repo.observeTagRefs()) { s, refs ->
             s.copy(tagRefs = refs.groupBy({ it.taskId }, { it.tagId }))
         }
+        .combine(repo.observeTags()) { s, tags -> s.copy(tags = tags) }
         .combine(settings.settings) { s, st -> s.copy(sortMap = st.listSortModes) }
 
     /** Reactive DB snapshot with the current view selection. */
@@ -100,11 +104,17 @@ class TasksViewModel @Inject constructor(
         val endToday = Time.startOfDayEpoch(today.plusDays(1))
         val childCounts = childCounts(snap.subtasks)
         val listNames = snap.lists.associate { it.id to it.name }
+        val tagNameById = snap.tags.associate { it.id to it.name }
+        val taskTagNames = snap.tagRefs.mapValues { (_, ids) ->
+            ids.mapNotNull { tagNameById[it] }.sortedBy { it.lowercase() }
+        }
         val base = TasksUiState(
             viewKey = key,
             viewTitle = viewTitleFor(key, snap),
             sortKey = sortKey,
             listNames = listNames,
+            listColors = snap.lists.associate { it.id to it.color },
+            taskTagNames = taskTagNames,
             childCounts = childCounts,
             totalActive = snap.active.size,
         )
