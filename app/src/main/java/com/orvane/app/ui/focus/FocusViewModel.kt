@@ -130,13 +130,11 @@ class FocusViewModel @Inject constructor(
             sessionsToday = today
                 .count { it.type == com.orvane.app.data.db.SessionType.POMODORO_FOCUS },
         )
-        // Eisenhower: importance from priority, urgency from the due date.
-        val urgent: (TaskEntity) -> Boolean = { t ->
-            t.due != null && t.due < Time.startOfDayEpoch(LocalDate.now().plusDays(2))
-        }
-        val important: (TaskEntity) -> Boolean = { t ->
-            t.priority >= com.orvane.app.data.db.TaskPriority.MEDIUM
-        }
+        // Eisenhower: importance from priority, urgency from the due date —
+        // the SAME unit-tested predicates as applyMatrixQuadrant (B3), so the
+        // grid and the drop rewrite can never disagree about bucketing.
+        val urgent: (TaskEntity) -> Boolean = { t -> taskRepo.isUrgent(t) }
+        val important: (TaskEntity) -> Boolean = { t -> taskRepo.isImportant(t) }
         val matrix = listOf(
             MatrixCell(
                 "Do first (urgent + important)",

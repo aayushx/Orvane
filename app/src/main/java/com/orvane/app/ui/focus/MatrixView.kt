@@ -85,6 +85,16 @@ fun matrixCellsToQuadrants(matrix: List<MatrixCell>): Map<MatrixQuadrant, List<T
         MatrixQuadrant.LATER to matrix.getOrNull(3)?.tasks.orEmpty(),
     )
 
+/**
+ * Pure drop hit-test over the registered quadrant rectangles: returns the first
+ * quadrant whose bounds contain [point], or null when the drop misses all of
+ * them. Extracted so unit tests can pin the drag-drop state logic (B3).
+ *
+ * A LinkedHashMap is expected (insertion order = quadrant priority on overlap).
+ */
+fun hitQuadrant(bounds: Map<MatrixQuadrant, Rect>, point: Offset): MatrixQuadrant? =
+    bounds.entries.firstOrNull { it.value.contains(point) }?.key
+
 /** Root state holder for one drag across quadrants. */
 internal class MatrixDragState {
     var id: String? by mutableStateOf(null)
@@ -104,8 +114,7 @@ fun MatrixView(
     val scope = rememberCoroutineScope()
     var expanded by remember { mutableStateOf<MatrixQuadrant?>(null) }
 
-    fun hitTest(root: Offset): MatrixQuadrant? =
-        quadrantBounds.entries.firstOrNull { it.value.contains(root) }?.key
+    fun hitTest(root: Offset): MatrixQuadrant? = hitQuadrant(quadrantBounds, root)
 
     fun commit() {
         val id = drag.id
