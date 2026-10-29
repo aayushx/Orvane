@@ -9,10 +9,13 @@ object AlarmTimes {
 
     /**
      * Next occurrence of a wall-clock HH:MM: now if it is exactly now or still
-     * ahead today, otherwise tomorrow at the same time.
+     * ahead today, otherwise tomorrow at the same time. The anchor date comes
+     * from [nowMillis] (not the wall clock) so the function is pure —
+     * deterministic for tests and schedulers alike.
      */
     fun nextOccurrence(hour: Int, minute: Int, nowMillis: Long, zone: ZoneId = ZoneId.systemDefault()): Long {
-        var t = LocalDate.now(zone).atTime(hour, minute).atZone(zone).toInstant().toEpochMilli()
+        val today = Instant.ofEpochMilli(nowMillis).atZone(zone).toLocalDate()
+        var t = today.atTime(hour, minute).atZone(zone).toInstant().toEpochMilli()
         if (t < nowMillis) {
             t += 24L * 60 * 60 * 1000
         }

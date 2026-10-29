@@ -91,10 +91,14 @@ class HabitsViewModel @Inject constructor(
             )
         }
         val scheduled = rows.filter { it.scheduledToday }
-        val done = scheduled.count { it.checkedToday || it.skippedToday }
+        // A skipped habit is NEUTRAL (same semantics as StreakCalculator):
+        // it does not count as done today and is excluded from the progress
+        // denominator, so skipping never inflates the ring or hero count.
+        val done = scheduled.count { it.checkedToday }
+        val progressBase = (scheduled.size - scheduled.count { it.skippedToday }).coerceAtLeast(0)
         HabitsUiState(
             rows = rows,
-            dashboardPercent = if (scheduled.isEmpty()) 0 else (100 * done / scheduled.size),
+            dashboardPercent = if (progressBase <= 0) 0 else (100 * done / progressBase),
             doneToday = done,
             scheduledTodayCount = scheduled.size,
             archived = archived,
