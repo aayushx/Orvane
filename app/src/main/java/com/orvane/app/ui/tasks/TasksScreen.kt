@@ -220,14 +220,18 @@ private fun SortBar(sortKey: String, onSort: (String) -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Spacer(Modifier.weight(1f))
-        IconButton(onClick = { expanded = true }, modifier = Modifier.size(32.dp)) {
-            Icon(
-                Icons.Default.MoreVert,
-                contentDescription = "Sort options",
-                modifier = Modifier.size(18.dp),
-            )
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        // Anchor the menu to the button itself (v1.2.0 / E10): placed in the
+        // Row's scope it opened at the Row's left edge; in a Box around the
+        // button it opens beneath the icon, aligned to the end edge.
+        Box {
+            IconButton(onClick = { expanded = true }, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    Icons.Default.MoreVert,
+                    contentDescription = "Sort options",
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             listOf(
                 "Manual" to SortKeys.MANUAL,
                 "Due date" to SortKeys.DUE,
@@ -251,6 +255,7 @@ private fun SortBar(sortKey: String, onSort: (String) -> Unit) {
                         }
                     },
                 )
+                }
             }
         }
     }
