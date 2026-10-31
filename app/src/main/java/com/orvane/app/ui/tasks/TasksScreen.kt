@@ -59,13 +59,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.orvane.app.data.db.SmartList
-import com.orvane.app.core.nl.NaturalLanguageDateParser
 import com.orvane.app.data.repo.SortKeys
 import com.orvane.app.data.repo.TaskRepository
 import com.orvane.app.ui.common.EmptyState
 import com.orvane.app.ui.common.SectionHeader as TonelSectionHeader
 import com.orvane.app.ui.theme.orvaneTokens
-import com.orvane.app.ui.quickadd.QuickAddViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
@@ -206,7 +204,6 @@ fun TasksScreen(
                 }
                 item(key = "bottom_pad") { Spacer(Modifier.height(8.dp)) }
             }
-            QuickAddBar()
         }
     }
 }

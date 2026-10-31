@@ -8,7 +8,10 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.fragment.app.FragmentActivity
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,8 +19,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -29,7 +35,6 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -56,12 +61,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -400,23 +408,45 @@ private fun BottomBar(tab: Tab, onTabSelected: (Tab) -> Unit, onCenterAction: ()
                 label = { Text("Focus") },
             )
         }
-        FloatingActionButton(
-            onClick = onCenterAction,
-            modifier = Modifier
-                // Center on the icon row, not the whole bar: NavigationBar's total
-                // box includes the gesture-inset area and the empty label row, so
-                // plain Alignment.Center put the FAB ~29dp too low (device-measured).
-                // The selected-item indicator (icon row) center sits ~26dp below the
-                // bar's top edge on the Pixel 10; a 56dp FAB anchored to that edge
-                // has its center at 28dp — within 1px of the icon row. (Device-
-                // measured offsets: -4dp put the pill 10px high and overhanging.)
-                .align(Alignment.TopCenter)
-                .width(56.dp)
-                .height(56.dp),
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
+        AddTaskPill(onCenterAction, Modifier.align(Alignment.TopCenter).offset(y = (-24).dp))
+    }
+}
+
+/**
+ * Bottom-center "Add Task" pill (v1.2.0 / E2): tonal secondaryContainer with a
+ * hairline border, large pill radius, and a gentle press-scale. It floats
+ * docked on the top edge of the bottom bar so list content scrolls beneath it.
+ */
+@Composable
+private fun AddTaskPill(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.95f else 1f,
+        animationSpec = spring(dampingRatio = 0.55f, stiffness = 600f),
+        label = "addPillScale",
+    )
+    Box(modifier.scale(scale)) {
+        Surface(
+            onClick = onClick,
+            interactionSource = interaction,
+            shape = RoundedCornerShape(50),
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            shadowElevation = 2.dp,
         ) {
-            Icon(Icons.Default.Add, contentDescription = "Quick add")
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(start = 18.dp, end = 20.dp, top = 12.dp, bottom = 12.dp),
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(22.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Add Task", style = MaterialTheme.typography.labelLarge)
+            }
         }
     }
 }
