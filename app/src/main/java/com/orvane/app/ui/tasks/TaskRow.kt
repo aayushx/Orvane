@@ -35,15 +35,20 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.orvane.app.core.util.Time
@@ -107,13 +112,37 @@ fun TaskRow(
             )
             Spacer(Modifier.width(tokens.spacing.md))
             Column(Modifier.weight(1f)) {
+                val strike = remember { Animatable(if (completed) 1f else 0f) }
+                var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
+                LaunchedEffect(completed) {
+                    strike.animateTo(
+                        if (completed) 1f else 0f,
+                        tween(tokens.motion.longMs, easing = tokens.motion.emphasizedEasing),
+                    )
+                }
                 Text(
                     task.title,
                     style = MaterialTheme.typography.titleMedium,
                     color = titleColor,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    textDecoration = if (completed) TextDecoration.LineThrough else null,
+                    onTextLayout = { layout = it },
+                    // Strikethrough fades in per wrapped line (binary LineThrough
+                    // cannot animate); drawn beneath the text at line centers.
+                    modifier = Modifier.drawBehind {
+                        val l = layout ?: return@drawBehind
+                        val progress = strike.value
+                        if (progress <= 0f) return@drawBehind
+                        for (i in 0 until l.lineCount) {
+                            val y = l.getLineBottom(i) - (l.getLineBottom(i) - l.getLineTop(i)) / 2f
+                            drawLine(
+                                color = titleColor,
+                                start = Offset(l.getLineLeft(i), y),
+                                end = Offset(l.getLineLeft(i) + (l.getLineRight(i) - l.getLineLeft(i)) * progress, y),
+                                strokeWidth = 1.25.dp.toPx(),
+                            )
+                        }
+                    },
                 )
                 TaskMetaRow(
                     task = task,
@@ -137,9 +166,10 @@ fun TaskRow(
 }
 
 /**
- * The round check control: filled + check when completed, tinted priority dot
- * when a priority is set, otherwise a quiet outlined circle. Completing plays
- * a spring scale bounce.
+ * The round check control: fills + check appears when completed, tinted
+ * priority dot when a priority is set, otherwise a quiet outlined circle.
+ * Completing plays a subtle non-bouncy spring scale with an animated fill
+ * (~300ms total, v1.2.0 / E4); un-completing reverses the fill.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -151,35 +181,46 @@ private fun CheckChip(
     onLongPress: () -> Unit,
 ) {
     val tokens = orvaneTokens()
-    val bounce = remember { Animatable(1f) }
+    val scale = remember { Animatable(1f) }
+    // Animate only on state TRANSITIONS: already-completed rows scrolled into
+    // view must not pop.
+    var lastCompleted by remember { mutableStateOf(completed) }
     LaunchedEffect(completed) {
-        if (completed) {
-            bounce.snapTo(1.25f)
-            bounce.animateTo(
-                1f,
-                spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
-            )
-        } else {
-            bounce.snapTo(1f)
+        if (completed != lastCompleted) {
+            lastCompleted = completed
+            if (completed) {
+                scale.snapTo(1f)
+                scale.animateTo(1.18f, tween(tokens.motion.shortMs, easing = tokens.motion.emphasizedEasing))
+                scale.animateTo(1f, spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMedium))
+            } else {
+                scale.snapTo(1f)
+            }
         }
     }
+    val fillProgress by animateFloatAsState(
+        targetValue = if (completed) 1f else 0f,
+        animationSpec = tween(tokens.motion.mediumMs, easing = tokens.motion.emphasizedEasing),
+        label = "chipFill",
+    )
     val checkAlpha by animateFloatAsState(
         targetValue = if (completed) 1f else 0f,
-        animationSpec = tween(tokens.motion.shortMs, easing = tokens.motion.emphasizedEasing),
+        animationSpec = tween(tokens.motion.mediumMs, easing = tokens.motion.emphasizedEasing),
         label = "checkAlpha",
     )
     val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
-    val checkColor = MaterialTheme.colorScheme.primary
+    val checkColor = MaterialTheme.colorScheme.onPrimary
     val chipColor = MaterialTheme.colorScheme.surfaceContainerHighest
+    val filledChipColor = lerp(chipColor, MaterialTheme.colorScheme.primary, fillProgress)
+    val borderColor = lerp(MaterialTheme.colorScheme.outlineVariant, MaterialTheme.colorScheme.primary, fillProgress)
     Box(
         modifier = Modifier
             .graphicsLayer {
-                scaleX = bounce.value
-                scaleY = bounce.value
+                scaleX = scale.value
+                scaleY = scale.value
             }
             .size(26.dp)
-            .background(chipColor, CircleShape)
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+            .background(filledChipColor, CircleShape)
+            .border(1.dp, borderColor, CircleShape)
             .combinedClickable(
                 enabled = enabled,
                 onClick = {
