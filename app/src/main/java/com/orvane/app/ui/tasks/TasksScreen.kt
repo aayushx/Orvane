@@ -109,7 +109,7 @@ fun TasksScreen(
             )
         } else {
             if (state.viewKey == SmartList.TODAY) {
-                GreetingHeader(displayName = null)
+                GreetingHeader(displayName = null, stats = state.greetingStats)
             }
             SortBar(state.sortKey, onSort = { vm.setSort(it) })
         }

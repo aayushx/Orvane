@@ -9,8 +9,10 @@ import com.orvane.app.data.db.FolderEntity
 import com.orvane.app.data.db.ListEntity
 import com.orvane.app.data.db.SmartList
 import com.orvane.app.data.db.TaskEntity
+import com.orvane.app.data.repo.HabitRepository
 import com.orvane.app.data.repo.SortKeys
 import com.orvane.app.data.repo.TaskRepository
+import com.orvane.app.data.db.CheckStatus
 import com.orvane.app.data.settings.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.Instant
@@ -39,6 +41,7 @@ data class TasksUiState(
     val taskTagNames: Map<String, List<String>> = emptyMap(),
     val childCounts: Map<String, Pair<Int, Int>> = emptyMap(),
     val totalActive: Int = 0,
+    val greetingStats: GreetingStats = GreetingStats(),
 )
 
 /** All reactive DB data in one immutable snapshot. */
@@ -53,12 +56,14 @@ private data class Snapshot(
     val tags: List<com.orvane.app.data.db.TagEntity> = emptyList(),
     val tagRefs: Map<String, List<String>> = emptyMap(),
     val sortMap: Map<String, String> = emptyMap(),
+    val habitChecksToday: List<com.orvane.app.data.db.HabitCheckEntity> = emptyList(),
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class TasksViewModel @Inject constructor(
     private val repo: TaskRepository,
+    private val habitRepo: HabitRepository,
     private val settings: SettingsRepository,
 ) : ViewModel() {
 
@@ -82,6 +87,9 @@ class TasksViewModel @Inject constructor(
             s.copy(tagRefs = refs.groupBy({ it.taskId }, { it.tagId }))
         }
         .combine(repo.observeTags()) { s, tags -> s.copy(tags = tags) }
+        .combine(habitRepo.observeChecksForToday()) { s, checks ->
+            s.copy(habitChecksToday = checks)
+        }
         .combine(settings.settings) { s, st -> s.copy(sortMap = st.listSortModes) }
 
     /** Reactive DB snapshot with the current view selection. */
@@ -117,6 +125,14 @@ class TasksViewModel @Inject constructor(
             taskTagNames = taskTagNames,
             childCounts = childCounts,
             totalActive = snap.active.size,
+            greetingStats = GreetingStats(
+                dueToday = snap.active.count { it.due != null && it.due < endToday },
+                completedToday = snap.completed.count { c ->
+                    val at = c.completedAt
+                    at != null && at >= startToday && at < endToday
+                },
+                habitsDoneToday = snap.habitChecksToday.count { it.status == CheckStatus.CHECKED },
+            ),
         )
         return when (key) {
             SmartList.TODAY -> {
