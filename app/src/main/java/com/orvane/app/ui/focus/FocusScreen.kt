@@ -22,6 +22,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -29,14 +31,15 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
@@ -45,15 +48,16 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -66,8 +70,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -134,9 +142,40 @@ private fun TimerView(state: FocusUiState, noise: String, vm: FocusViewModel, on
     val tokens = orvaneTokens()
     val pomo = state.pomo
     val running = pomo.phase != PomodoroPhase.IDLE
+    // Per-phase tonal tint (v1.2.0 / E11): focus = primaryContainer,
+    // breaks = tertiaryContainer, idle = plain surface; animated so phase
+    // transitions shift the backdrop smoothly.
+    val phaseTint by animateColorAsState(
+        targetValue = when {
+            pomo.phase == PomodoroPhase.FOCUS && pomo.stopwatch -> MaterialTheme.colorScheme.secondaryContainer
+            pomo.phase == PomodoroPhase.FOCUS -> MaterialTheme.colorScheme.primaryContainer
+            pomo.phase == PomodoroPhase.SHORT_BREAK || pomo.phase == PomodoroPhase.LONG_BREAK ->
+                MaterialTheme.colorScheme.tertiaryContainer
+            else -> MaterialTheme.colorScheme.surface
+        },
+        animationSpec = tween(tokens.motion.longMs, easing = tokens.motion.emphasizedEasing),
+        label = "phaseTint",
+    )
+    // Completion moment (v1.2.0 / E11): when a phase hands over to the next,
+    // the ring pulses once and a haptic pulse fires.
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
+    var prevPhase by remember { mutableStateOf(pomo.phase) }
+    val pulse = remember { Animatable(1f) }
+    LaunchedEffect(pomo.phase) {
+        if (pomo.phase != prevPhase) {
+            val completed = prevPhase != PomodoroPhase.IDLE
+            prevPhase = pomo.phase
+            if (completed) {
+                haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                pulse.snapTo(1.05f)
+                pulse.animateTo(1f, tween(tokens.motion.longMs, easing = tokens.motion.emphasizedEasing))
+            }
+        }
+    }
     Column(
         Modifier
             .fillMaxSize()
+            .background(phaseTint.copy(alpha = 0.35f))
             .verticalScroll(rememberScrollState())
             .padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -155,9 +194,33 @@ private fun TimerView(state: FocusUiState, noise: String, vm: FocusViewModel, on
             pomo.paused && pomo.phase != PomodoroPhase.IDLE -> " · paused"
             else -> ""
         }
+        // Phase pill (Round 2 / C5; E11 tonal): "Focus · round 2 of 4",
+        // animated on phase change and tinted per phase.
+        val pillColor by animateColorAsState(
+            targetValue = when {
+                pomo.phase == PomodoroPhase.FOCUS && stopwatch -> MaterialTheme.colorScheme.secondaryContainer
+                pomo.phase == PomodoroPhase.FOCUS -> MaterialTheme.colorScheme.primaryContainer
+                pomo.phase == PomodoroPhase.SHORT_BREAK || pomo.phase == PomodoroPhase.LONG_BREAK ->
+                    MaterialTheme.colorScheme.tertiaryContainer
+                else -> MaterialTheme.colorScheme.surfaceContainerHigh
+            },
+            animationSpec = tween(tokens.motion.longMs, easing = tokens.motion.emphasizedEasing),
+            label = "phasePillTint",
+        )
+        val pillContent by animateColorAsState(
+            targetValue = when {
+                pomo.phase == PomodoroPhase.FOCUS && stopwatch -> MaterialTheme.colorScheme.onSecondaryContainer
+                pomo.phase == PomodoroPhase.FOCUS -> MaterialTheme.colorScheme.onPrimaryContainer
+                pomo.phase == PomodoroPhase.SHORT_BREAK || pomo.phase == PomodoroPhase.LONG_BREAK ->
+                    MaterialTheme.colorScheme.onTertiaryContainer
+                else -> MaterialTheme.colorScheme.primary
+            },
+            animationSpec = tween(tokens.motion.longMs, easing = tokens.motion.emphasizedEasing),
+            label = "phasePillContent",
+        )
         Surface(
             shape = RoundedCornerShape(50),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            color = pillColor,
         ) {
             AnimatedContent(
                 targetState = phaseLabel + phaseSuffix,
@@ -170,12 +233,38 @@ private fun TimerView(state: FocusUiState, noise: String, vm: FocusViewModel, on
                 Text(
                     label,
                     style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = pillContent,
                     modifier = Modifier.padding(horizontal = tokens.spacing.md, vertical = tokens.spacing.xs),
                 )
             }
         }
-        Spacer(Modifier.height(tokens.spacing.lg))
+        Spacer(Modifier.height(tokens.spacing.sm))
+        // Round-indicator dots (v1.2.0 / E11): one dot per configured round;
+        // completed rounds filled, the active one glowing in the ring color.
+        if (!stopwatch && running) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                repeat(state.configCycles) { i ->
+                    val filled = i < pomo.cyclesCompleted
+                    val active = i == pomo.cyclesCompleted && pomo.phase == PomodoroPhase.FOCUS
+                    val dotColor by animateColorAsState(
+                        targetValue = when {
+                            filled -> MaterialTheme.colorScheme.primary
+                            active -> MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
+                            else -> MaterialTheme.colorScheme.outlineVariant
+                        },
+                        label = "dotColor",
+                    )
+                    Box(
+                        Modifier
+                            .size(if (active) 10.dp else 8.dp)
+                            .clip(CircleShape)
+                            .background(dotColor),
+                    )
+                }
+            }
+            Spacer(Modifier.height(tokens.spacing.sm))
+        }
+        Spacer(Modifier.height(tokens.spacing.sm))
         // Circular progress ring in primary with large numerals (Round 2 / C5).
         val ringColor = when {
             pomo.phase == PomodoroPhase.FOCUS && stopwatch -> MaterialTheme.colorScheme.secondary
@@ -198,11 +287,14 @@ private fun TimerView(state: FocusUiState, noise: String, vm: FocusViewModel, on
             progress = sweep,
             ringColor = ringColor,
             trackColor = MaterialTheme.colorScheme.surfaceVariant,
-            modifier = Modifier.size(236.dp),
+            modifier = Modifier.size(236.dp).graphicsLayer {
+                scaleX = pulse.value
+                scaleY = pulse.value
+            },
         ) {
             Text(
                 formatClock(pomo),
-                style = MaterialTheme.typography.displayLarge,
+                style = MaterialTheme.typography.displayLarge.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
             )
@@ -323,6 +415,24 @@ private fun RingTimer(
             val r = (size.minDimension - stroke) / 2
             drawCircle(color = trackColor, radius = r, style = Stroke(stroke))
             if (progress > 0f) {
+                // Subtle glow (v1.2.0 / E11): a few wider low-alpha passes of
+                // the same theme color behind the arc — cheap blur that reads
+                // as a halo without bitmap effects.
+                for (pass in 1..3) {
+                    val glowWidth = stroke + pass * 7.dp.toPx()
+                    val glowAlpha = when (pass) {
+                        1 -> 0.16f
+                        2 -> 0.09f
+                        else -> 0.05f
+                    }
+                    drawArc(
+                        color = ringColor.copy(alpha = glowAlpha),
+                        startAngle = -90f,
+                        sweepAngle = 360f * progress,
+                        useCenter = false,
+                        style = Stroke(glowWidth, cap = StrokeCap.Round),
+                    )
+                }
                 drawArc(
                     color = ringColor,
                     startAngle = -90f,
@@ -518,16 +628,28 @@ fun PomodoroLengthSteppers(
     cycles: Int,
     vm: FocusViewModel,
 ) {
+    val tokens = orvaneTokens()
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Row(
-            Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        // Restyled B2 sheet (v1.2.0 / E11): the steppers sit on a tonal card,
+        // with round tonal +/− buttons and large numerals. Bounds, write-
+        // through persistence and the summary line are unchanged (B2).
+        Surface(
+            shape = RoundedCornerShape(tokens.corners.dialog),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            modifier = Modifier.fillMaxWidth(),
         ) {
-            Stepper(label = "Focus", value = configMinutes.first, onDelta = { vm.nudgePomodoro(0, it) })
-            Stepper(label = "Short", value = configMinutes.second, onDelta = { vm.nudgePomodoro(1, it) })
-            Stepper(label = "Long", value = configMinutes.third, onDelta = { vm.nudgePomodoro(2, it) })
-            Stepper(label = "× before", value = cycles, step = 1, onDelta = { vm.nudgePomodoro(3, it) })
+            Row(
+                Modifier
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Stepper(label = "Focus", value = configMinutes.first, onDelta = { vm.nudgePomodoro(0, it) })
+                Stepper(label = "Short", value = configMinutes.second, onDelta = { vm.nudgePomodoro(1, it) })
+                Stepper(label = "Long", value = configMinutes.third, onDelta = { vm.nudgePomodoro(2, it) })
+                Stepper(label = "× before", value = cycles, step = 1, onDelta = { vm.nudgePomodoro(3, it) })
+            }
         }
         Text(
             "${configMinutes.first} min focus · ${configMinutes.second} min break · long break every $cycles",
@@ -544,25 +666,26 @@ private fun Stepper(
     step: Int = 5,
     onDelta: (Int) -> Unit,
 ) {
+    // E11 restyle: round tonal buttons (32dp targets), big bold numerals.
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(
-                modifier = Modifier.size(28.dp),
+            FilledTonalIconButton(
+                modifier = Modifier.size(32.dp),
                 onClick = { onDelta(-step) },
             ) {
-                Icon(Icons.Default.Remove, contentDescription = "Decrease $label by $step")
+                Icon(Icons.Default.Remove, contentDescription = "Decrease $label by $step", modifier = Modifier.size(16.dp))
             }
             Text(
                 "$value",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(horizontal = 4.dp),
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                modifier = Modifier.padding(horizontal = 6.dp),
             )
-            IconButton(
-                modifier = Modifier.size(28.dp),
+            FilledTonalIconButton(
+                modifier = Modifier.size(32.dp),
                 onClick = { onDelta(step) },
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Increase $label by $step")
+                Icon(Icons.Default.Add, contentDescription = "Increase $label by $step", modifier = Modifier.size(16.dp))
             }
         }
     }
