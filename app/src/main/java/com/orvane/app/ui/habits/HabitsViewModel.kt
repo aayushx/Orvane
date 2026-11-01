@@ -134,6 +134,39 @@ class HabitsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Backfill (v1.2.0 / E8): toggle a PAST-or-today day's completion from the
+     * weekly bars. Toggling means: no record or skip -> checked; checked ->
+     * cleared. Future days are rejected. Streaks recompute reactively through
+     * the existing unit-tested StreakCalculator logic (no schema change —
+     * completions are already stored per date).
+     */
+    fun toggleCheckForDay(habitId: String, epochDay: Long) {
+        val today = Time.todayEpochDay()
+        if (epochDay > today) return
+        viewModelScope.launch {
+            when (repo.statusForDay(habitId, epochDay)) {
+                CheckStatus.CHECKED -> repo.removeCheck(habitId, epochDay)
+                else -> repo.check(habitId, epochDay)
+            }
+            refresh.value += 1
+        }
+    }
+
+    /** Backfill long-press: toggle a day's SKIP (neutral) status. Future rejected. */
+    fun toggleSkipForDay(habitId: String, epochDay: Long) {
+        val today = Time.todayEpochDay()
+        if (epochDay > today) return
+        viewModelScope.launch {
+            if (repo.statusForDay(habitId, epochDay) == CheckStatus.SKIPPED) {
+                repo.removeCheck(habitId, epochDay)
+            } else {
+                repo.skip(habitId, epochDay)
+            }
+            refresh.value += 1
+        }
+    }
+
     fun save(
         id: String?,
         name: String,

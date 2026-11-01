@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -126,6 +128,10 @@ fun HabitsScreen(vm: HabitsViewModel = hiltViewModel()) {
                         onSkip = { vm.toggleSkip(row.habit) },
                         onEdit = { editingId = row.habit.id; editorOpen = true },
                         onArchive = { vm.archive(row.habit.id) },
+                        // Backfill (v1.2.0 / E8): tap the weekly bars to toggle a
+                        // day's completion, long-press to toggle skip.
+                        onCheckDay = { habit, epochDay -> vm.toggleCheckForDay(habit.id, epochDay) },
+                        onSkipDay = { habit, epochDay -> vm.toggleSkipForDay(habit.id, epochDay) },
                     )
                 }
                 if (state.archived.isNotEmpty()) {
@@ -266,6 +272,8 @@ private fun HabitCard(
     onSkip: () -> Unit,
     onEdit: () -> Unit,
     onArchive: () -> Unit,
+    onCheckDay: (HabitEntity, Long) -> Unit = { _, _ -> },
+    onSkipDay: (HabitEntity, Long) -> Unit = { _, _ -> },
 ) {
     val habit = row.habit
     var expanded by rememberSaveable { mutableStateOf(false) }
@@ -378,7 +386,7 @@ private fun HabitCard(
         }
         if (expanded) {
             Spacer(Modifier.height(10.dp))
-            HabitStats(row)
+            HabitStats(row, onCheckDay, onSkipDay)
             TextButton(onClick = onArchive) {
                 Icon(Icons.Default.Archive, contentDescription = null, modifier = Modifier.size(14.dp))
                 Spacer(Modifier.width(4.dp))
@@ -389,7 +397,11 @@ private fun HabitCard(
 }
 
 @Composable
-private fun HabitStats(row: HabitRow) {
+private fun HabitStats(
+    row: HabitRow,
+    onCheckDay: (HabitEntity, Long) -> Unit,
+    onSkipDay: (HabitEntity, Long) -> Unit,
+) {
     val tokens = orvaneTokens()
     Column {
         Row(Modifier.fillMaxWidth()) {
@@ -424,7 +436,7 @@ private fun HabitStats(row: HabitRow) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(4.dp))
-        WeekdayBars(row)
+        WeekdayBars(row, onCheckDay, onSkipDay)
     }
 }
 
@@ -515,10 +527,16 @@ private fun Heatmap(row: HabitRow) {
  * Weekday bars: seven equal columns so every bar sits EXACTLY over its weekday
  * label (the Round-1 QA misalignment came from centering narrow bars inside
  * wide columns). Today renders full-opacity in the habit color, other days at
- * 60%; a tap selects the day and prints its detail line (Round 2 / C2).
+ * 60%. Backfill (v1.2.0 / E8): tap toggles the day's completion, long-press
+ * toggles a skip — past days and today only; future days are not tappable.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun WeekdayBars(row: HabitRow) {
+private fun WeekdayBars(
+    row: HabitRow,
+    onCheckDay: (HabitEntity, Long) -> Unit,
+    onSkipDay: (HabitEntity, Long) -> Unit,
+) {
     val habit = row.habit
     val today = LocalDate.now()
     val monday = today.minusDays((today.dayOfWeek.value - 1).toLong())
@@ -564,17 +582,25 @@ private fun WeekdayBars(row: HabitRow) {
                             .background(baseColor.copy(alpha = alpha))
                             .fillMaxWidth(0.62f)
                             .fillMaxHeight(fraction)
-                            .clickable(enabled = !future) {
-                                selected = if (selected == day.toEpochDay()) null else day.toEpochDay()
-                            }
+                            .combinedClickable(
+                                enabled = !future,
+                                onClick = {
+                                    selected = if (selected == day.toEpochDay()) null else day.toEpochDay()
+                                    onCheckDay(habit, day.toEpochDay())
+                                },
+                                onLongClick = {
+                                    selected = if (selected == day.toEpochDay()) null else day.toEpochDay()
+                                    onSkipDay(habit, day.toEpochDay())
+                                },
+                            )
                             .semantics {
                                 contentDescription =
                                     day.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.ENGLISH) +
                                         when {
-                                            checked -> ", done"
-                                            skipped -> ", skipped"
-                                            scheduled -> ", not done"
-                                            else -> ", no habit scheduled"
+                                            checked -> ", done. Tap to undo"
+                                            skipped -> ", skipped. Tap to mark done"
+                                            scheduled -> ", not done. Tap to backfill"
+                                            else -> ", no habit scheduled. Tap to mark done"
                                         }
                             },
                     )
