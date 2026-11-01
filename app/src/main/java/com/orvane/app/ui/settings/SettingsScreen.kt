@@ -252,11 +252,13 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    com.orvane.app.ui.common.CustomTimeChipRow(
-                        presetHours = listOf(19, 20, 21, 22),
-                        currentHour = s.habitNagCutoffHour,
-                        currentMinute = s.habitNagCutoffMinute,
-                        onSelect = { h, m -> vm.setNagCutoff(h, m) },
+                    // Custom time only (v1.2.0 / E9): no fixed chips — the
+                    // stored cutoff opens the M3 time picker prefilled.
+                    com.orvane.app.ui.common.CustomTimeRow(
+                        hour = s.habitNagCutoffHour,
+                        minute = s.habitNagCutoffMinute,
+                        onPick = { h, m -> vm.setNagCutoff(h, m) },
+                        title = "Evening nag cutoff",
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 6.dp),

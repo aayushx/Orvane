@@ -906,16 +906,17 @@ private fun HabitEditorDialog(
                     Text("Reminder")
                 }
                 if (reminderEnabled) {
-                    // Presets + Custom… time picker (Round 2 / B1): any HH:MM
-                    // selectable for a habit's daily reminder.
-                    com.orvane.app.ui.common.CustomTimeChipRow(
-                        presetHours = listOf(6, 7, 8, 9, 12, 18, 20),
-                        currentHour = reminderHour,
-                        currentMinute = reminderMinute,
-                        onSelect = { h, m ->
+                    // Custom time only (v1.2.0 / E9): the stored habit time is
+                    // always the default; tapping opens the M3 time picker.
+                    // No fixed preset chips anymore.
+                    com.orvane.app.ui.common.CustomTimeRow(
+                        hour = reminderHour,
+                        minute = reminderMinute,
+                        onPick = { h, m ->
                             reminderHour = h
                             reminderMinute = m
                         },
+                        title = "Reminder time",
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
