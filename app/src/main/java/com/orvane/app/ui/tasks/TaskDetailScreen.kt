@@ -57,7 +57,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.orvane.app.core.util.Time
@@ -124,19 +130,58 @@ fun TaskDetailScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp),
         ) {
-            // Title + done checkbox
+            // Title + done checkbox. The title is tap-to-edit (v1.2.0 / E7):
+            // saves on the IME Done action or on focus loss; blank drafts
+            // are rejected and the last valid title kept.
+            val titleFocus = remember { FocusRequester() }
+            var editingTitle by rememberSaveable { mutableStateOf(false) }
+            var titleDraft by rememberSaveable(t.id) { mutableStateOf(t.title) }
+            var titleWasFocused by remember { mutableStateOf(false) }
+            fun commitTitle() {
+                titleWasFocused = false
+                vm.setTitle(titleDraft)
+                editingTitle = false
+            }
             Row(verticalAlignment = Alignment.Top) {
                 Checkbox(
                     checked = t.completedAt != null,
                     onCheckedChange = { vm.toggleDone() },
                 )
                 Spacer(Modifier.width(10.dp))
-                Text(
-                    t.title,
-                    style = MaterialTheme.typography.headlineSmall,
-                    textDecoration = if (t.completedAt != null) TextDecoration.LineThrough else null,
-                    modifier = Modifier.weight(1f).padding(top = 14.dp),
-                )
+                if (editingTitle) {
+                    OutlinedTextField(
+                        value = titleDraft,
+                        onValueChange = { titleDraft = it },
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.headlineSmall,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { commitTitle() }),
+                        modifier = Modifier
+                            .weight(1f)
+                            .onFocusChanged { st ->
+                                if (st.isFocused) {
+                                    titleWasFocused = true
+                                } else if (titleWasFocused) {
+                                    commitTitle()
+                                }
+                            }
+                            .focusRequester(titleFocus),
+                    )
+                    LaunchedEffect(editingTitle) { titleFocus.requestFocus() }
+                } else {
+                    Text(
+                        t.title,
+                        style = MaterialTheme.typography.headlineSmall,
+                        textDecoration = if (t.completedAt != null) TextDecoration.LineThrough else null,
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(top = 14.dp)
+                            .clickable {
+                                titleDraft = t.title
+                                editingTitle = true
+                            },
+                    )
+                }
             }
             Spacer(Modifier.height(10.dp))
 

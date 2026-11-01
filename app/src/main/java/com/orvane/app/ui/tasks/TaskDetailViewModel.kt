@@ -70,7 +70,22 @@ class TaskDetailViewModel @Inject constructor(
 
     fun setTitle(title: String) {
         val id = taskId.value ?: return
-        if (title.isNotBlank()) viewModelScope.launch { repo.setTitle(id, title) }
+        val t = task.value ?: return
+        // Blank/unchanged drafts are rejected — the last valid title is kept
+        // (v1.2.0 / E7; the acceptance rule is pure and unit-tested).
+        val next = serializeTitle(title, t.title) ?: return
+        viewModelScope.launch { repo.setTitle(id, next) }
+    }
+
+    companion object {
+        /**
+         * Normalizes a drafted title into a persistable value: trimmed;
+         * blank (after trim) and unchanged drafts are rejected with null.
+         */
+        fun serializeTitle(draft: String, current: String): String? {
+            val t = draft.trim()
+            return t.takeIf { it.isNotEmpty() && it != current }
+        }
     }
 
     fun setNote(note: String) {
