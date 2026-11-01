@@ -34,6 +34,9 @@ import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
@@ -81,6 +84,10 @@ fun TasksScreen(
     val showCompletedAtBottom = state.viewKey.startsWith("list:") || state.viewKey == SmartList.COMPLETED
     val inSelection = selection.isNotEmpty()
     var completedExpanded by rememberSaveable { mutableStateOf(true) }
+    // List/Matrix in-page toggle (v1.2.0 / E6): the Eisenhower matrix lives
+    // here now instead of inside Focus. rememberSaveable keeps the choice
+    // across config changes; back-stack behavior is unchanged (same screen).
+    var showMatrix by rememberSaveable { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize()) {
         if (inSelection) {
@@ -111,10 +118,20 @@ fun TasksScreen(
             if (state.viewKey == SmartList.TODAY) {
                 GreetingHeader(displayName = null, stats = state.greetingStats)
             }
-            SortBar(state.sortKey, onSort = { vm.setSort(it) })
+            ListMatrixToggle(showMatrix, onChange = { showMatrix = it })
+            if (showMatrix) {
+                MatrixView(
+                    matrix = state.matrix,
+                    onCommitMove = { id, target -> vm.commitMatrixMove(id, target) },
+                    modifier = Modifier.weight(1f),
+                )
+            } else {
+                SortBar(state.sortKey, onSort = { vm.setSort(it) })
+            }
         }
 
-        val rowsInSections = state.sections.sumOf { it.tasks.size }
+        if (!showMatrix || inSelection) {
+            val rowsInSections = state.sections.sumOf { it.tasks.size }
         if (rowsInSections == 0 && (!showCompletedAtBottom || state.completed.isEmpty()) && !inSelection) {
             EmptyTasks(state.viewTitle)
         } else {
@@ -204,6 +221,36 @@ fun TasksScreen(
                 }
                 item(key = "bottom_pad") { Spacer(Modifier.height(8.dp)) }
             }
+        }
+        }
+    }
+}
+
+/**
+ * List/Matrix view toggle (v1.2.0 / E6): a two-segment SegmentedButton row,
+ * trailing-aligned at the top of the Tasks page.
+ */
+@Composable
+private fun ListMatrixToggle(showMatrix: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp),
+        horizontalArrangement = Arrangement.End,
+    ) {
+        SingleChoiceSegmentedButtonRow {
+            SegmentedButton(
+                selected = !showMatrix,
+                onClick = { onChange(false) },
+                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                label = { Text("List") },
+            )
+            SegmentedButton(
+                selected = showMatrix,
+                onClick = { onChange(true) },
+                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                label = { Text("Matrix") },
+            )
         }
     }
 }

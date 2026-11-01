@@ -1,4 +1,4 @@
-package com.orvane.app.ui.focus
+package com.orvane.app.ui.tasks
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect

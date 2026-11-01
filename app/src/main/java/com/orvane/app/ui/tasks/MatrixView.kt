@@ -1,4 +1,4 @@
-package com.orvane.app.ui.focus
+package com.orvane.app.ui.tasks
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
@@ -30,7 +30,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,7 +58,6 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlin.math.roundToInt
-import kotlinx.coroutines.launch
 
 /**
  * Round 2 / B3: a TRUE 2x2 Eisenhower matrix.
@@ -75,6 +73,12 @@ enum class MatrixQuadrant(val label: String, val hint: String) {
     DELEGATE("Delegate", "Urgent, not important"),
     LATER("Later", "Neither"),
 }
+
+/** One matrix cell: a quadrant slug plus its bucketed tasks (from the VM). */
+data class MatrixCell(
+    val title: String,
+    val tasks: List<TaskEntity>,
+)
 
 /** Maps the VM's ordered four cells onto quadrants (same order as the old list view). */
 fun matrixCellsToQuadrants(matrix: List<MatrixCell>): Map<MatrixQuadrant, List<TaskEntity>> =
@@ -105,13 +109,13 @@ internal class MatrixDragState {
 @Composable
 fun MatrixView(
     matrix: List<MatrixCell>,
-    vm: FocusViewModel,
+    onCommitMove: (id: String, target: MatrixQuadrant) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val cells = remember(matrix) { matrixCellsToQuadrants(matrix) }
     val drag = remember { MatrixDragState() }
     val chipBounds = remember { mutableMapOf<String, Rect>() }
     val quadrantBounds = remember { mutableMapOf<MatrixQuadrant, Rect>() }
-    val scope = rememberCoroutineScope()
     val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
     var expanded by remember { mutableStateOf<MatrixQuadrant?>(null) }
 
@@ -124,7 +128,7 @@ fun MatrixView(
         if (id != null && target != null) {
             // Haptic tick on quadrant drop (Round 2 / C6).
             haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
-            scope.launch { vm.commitMatrixMove(id, target) }
+            onCommitMove(id, target)
         }
     }
 
@@ -139,7 +143,7 @@ fun MatrixView(
         drag.target = hitTest(root)
     }
 
-    Box(Modifier.fillMaxSize()) {
+    Box(modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             // ---- URGENT / NOT URGENT axis header ----
             Row(

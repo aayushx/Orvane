@@ -78,11 +78,12 @@ import com.orvane.app.ui.theme.orvaneTokens
 import com.orvane.app.data.db.TaskEntity
 import java.util.Locale
 
-private val TIMER_TABS = listOf("Timer", "Stats", "Matrix", "Today plan")
+private val TIMER_TABS = listOf("Timer", "Stats", "Today plan")
 
 /**
  * Focus tab: pomodoro timer backed by the foreground service, white-noise
- * picker, focus statistics, the Eisenhower matrix and the Today plan.
+ * picker, focus statistics and the Today plan. (The Eisenhower matrix moved
+ * to the Tasks page in v1.2.0 / E6.)
  */
 @Composable
 fun FocusScreen(vm: FocusViewModel = hiltViewModel()) {
@@ -105,7 +106,6 @@ fun FocusScreen(vm: FocusViewModel = hiltViewModel()) {
         }
         when (tab) {
             "Stats" -> StatsView(state)
-            "Matrix" -> MatrixView(state.matrix, vm)
             "Today plan" -> TodayPlanView(state, vm)
             else -> TimerView(state, noise, vm) { setupOpen = true }
         }

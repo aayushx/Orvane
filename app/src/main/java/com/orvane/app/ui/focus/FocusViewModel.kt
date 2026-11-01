@@ -44,18 +44,12 @@ data class FocusStatsState(
     val sessionsToday: Int = 0,
 )
 
-data class MatrixCell(
-    val title: String,
-    val tasks: List<TaskEntity>,
-)
-
 data class FocusUiState(
     val pomo: PomodoroState = PomodoroState(),
     val configMinutes: Triple<Int, Int, Int> = Triple(25, 5, 15),
     val configCycles: Int = 4,
     val activeTasks: List<TaskEntity> = emptyList(),
     val stats: FocusStatsState = FocusStatsState(),
-    val matrix: List<MatrixCell> = emptyList(),
     val todayTasks: List<TaskEntity> = emptyList(),
     val todayEvents: List<CalendarEventEntity> = emptyList(),
 )
@@ -130,29 +124,8 @@ class FocusViewModel @Inject constructor(
             sessionsToday = today
                 .count { it.type == com.orvane.app.data.db.SessionType.POMODORO_FOCUS },
         )
-        // Eisenhower: importance from priority, urgency from the due date —
-        // the SAME unit-tested predicates as applyMatrixQuadrant (B3), so the
-        // grid and the drop rewrite can never disagree about bucketing.
-        val urgent: (TaskEntity) -> Boolean = { t -> taskRepo.isUrgent(t) }
-        val important: (TaskEntity) -> Boolean = { t -> taskRepo.isImportant(t) }
-        val matrix = listOf(
-            MatrixCell(
-                "Do first (urgent + important)",
-                active.filter { urgent(it) && important(it) }.sortedBy { it.due ?: Long.MAX_VALUE },
-            ),
-            MatrixCell(
-                "Schedule (important, not urgent)",
-                active.filter { !urgent(it) && important(it) }.sortedBy { it.due ?: Long.MAX_VALUE },
-            ),
-            MatrixCell(
-                "Delegate (urgent, less important)",
-                active.filter { urgent(it) && !important(it) }.sortedBy { it.due ?: Long.MAX_VALUE },
-            ),
-            MatrixCell(
-                "Later (neither)",
-                active.filter { !urgent(it) && !important(it) }.sortedBy { it.due ?: Long.MAX_VALUE },
-            ),
-        )
+        // The Eisenhower matrix grid now lives in Tasks (v1.2.0 / E6); the
+        // unit-tested predicate pairs (isUrgent / isImportant) moved with it.
         FocusUiState(
             pomo = pomoState,
             configMinutes = Triple(
@@ -163,7 +136,6 @@ class FocusViewModel @Inject constructor(
             configCycles = cfg?.cyclesBeforeLongBreak ?: 4,
             activeTasks = active,
             stats = stats,
-            matrix = matrix,
             todayTasks = todayTasks,
             todayEvents = todayEvents.sortedBy { it.start },
         )
@@ -177,17 +149,6 @@ class FocusViewModel @Inject constructor(
     }
 
     // ---- Control ----
-
-    /** Applies the drop target's (priority/due) semantics, breaks nothing else. */
-    fun commitMatrixMove(taskId: String, quadrant: MatrixQuadrant) {
-        viewModelScope.launch {
-            taskRepo.applyMatrixQuadrant(
-                taskId,
-                @Suppress("DEPRECATION") com.orvane.app.data.repo.TaskRepository.MatrixQuadrant.valueOf(quadrant.name),
-            )
-            refresh.value += 1
-        }
-    }
 
     fun setPomodoro(config: PomodoroConfig) {
         viewModelScope.launch { settingsRepo.setPomodoroConfig(config) }

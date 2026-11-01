@@ -42,6 +42,7 @@ data class TasksUiState(
     val childCounts: Map<String, Pair<Int, Int>> = emptyMap(),
     val totalActive: Int = 0,
     val greetingStats: GreetingStats = GreetingStats(),
+    val matrix: List<MatrixCell> = emptyList(),
 )
 
 /** All reactive DB data in one immutable snapshot. */
@@ -132,6 +133,32 @@ class TasksViewModel @Inject constructor(
                     at != null && at >= startToday && at < endToday
                 },
                 habitsDoneToday = snap.habitChecksToday.count { it.status == CheckStatus.CHECKED },
+            ),
+            // Eisenhower grid (moved from Focus in v1.2.0 / E6): importance
+            // from priority, urgency from the due date — the SAME unit-tested
+            // predicates as applyMatrixQuadrant, so the grid and the drop
+            // rewrite can never disagree about bucketing.
+            matrix = listOf(
+                MatrixCell(
+                    "Do first (urgent + important)",
+                    snap.active.filter { repo.isUrgent(it) && repo.isImportant(it) }
+                        .sortedBy { it.due ?: Long.MAX_VALUE },
+                ),
+                MatrixCell(
+                    "Schedule (important, not urgent)",
+                    snap.active.filter { !repo.isUrgent(it) && repo.isImportant(it) }
+                        .sortedBy { it.due ?: Long.MAX_VALUE },
+                ),
+                MatrixCell(
+                    "Delegate (urgent, less important)",
+                    snap.active.filter { repo.isUrgent(it) && !repo.isImportant(it) }
+                        .sortedBy { it.due ?: Long.MAX_VALUE },
+                ),
+                MatrixCell(
+                    "Later (neither)",
+                    snap.active.filter { !repo.isUrgent(it) && !repo.isImportant(it) }
+                        .sortedBy { it.due ?: Long.MAX_VALUE },
+                ),
             ),
         )
         return when (key) {
@@ -319,6 +346,19 @@ class TasksViewModel @Inject constructor(
 
     fun setSort(key: String) {
         viewModelScope.launch { settings.setListSortMode(viewKey.value, key) }
+    }
+
+    /**
+     * Applies a quadrant drop's (priority/due) semantics, then the reactive
+     * snapshot re-buckets every view including the grid itself.
+     */
+    fun commitMatrixMove(taskId: String, quadrant: MatrixQuadrant) {
+        viewModelScope.launch {
+            repo.applyMatrixQuadrant(
+                taskId,
+                @Suppress("DEPRECATION") com.orvane.app.data.repo.TaskRepository.MatrixQuadrant.valueOf(quadrant.name),
+            )
+        }
     }
 
     fun restore(id: String) {
