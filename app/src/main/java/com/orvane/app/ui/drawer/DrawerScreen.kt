@@ -882,15 +882,19 @@ private fun DrawerRow(
             title,
             style = MaterialTheme.typography.bodyMedium,
             color = if (isSelected) selectedText else MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f),
         )
+        // Count badge sits right after the label with an ~8dp gap (v1.2.0 /
+        // E5), not hugging the row's trailing edge; the manage ⋮ (if any)
+        // stays pinned to the trailing edge by a weighted spacer.
         if (count != null) {
+            Spacer(Modifier.width(8.dp))
             Text(
                 count.toString(),
                 style = MaterialTheme.typography.labelMedium,
                 color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        Spacer(Modifier.weight(1f))
         if (onEdit != null) {
             IconButton(
                 modifier = Modifier
