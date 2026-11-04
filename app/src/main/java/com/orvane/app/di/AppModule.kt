@@ -83,4 +83,10 @@ abstract class AccountModule {
     abstract fun bindGoogleCalendarApi(
         impl: com.orvane.app.data.google.HttpGoogleCalendarApi,
     ): com.orvane.app.data.google.GoogleCalendarApi
+
+    @Binds
+    @Singleton
+    abstract fun bindDriveApi(
+        impl: com.orvane.app.data.google.HttpDriveApi,
+    ): com.orvane.app.data.google.DriveApi
 }

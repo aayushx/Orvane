@@ -85,6 +85,7 @@ class SettingsViewModel @Inject constructor(
     private val backupRepo: BackupRepository,
     private val habitRepo: HabitRepository,
     private val accountRepo: com.orvane.app.data.account.AccountRepository,
+    private val driveBackup: com.orvane.app.data.google.DriveBackupSync,
 ) : ViewModel() {
 
     val state: StateFlow<AppSettings?> = settings.settings
@@ -95,6 +96,35 @@ class SettingsViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(4000), null)
 
     val isGoogleConfigured: Boolean = accountRepo.isConfigured
+
+    /** G5: Drive backup status + operations. */
+    val driveMessage = MutableStateFlow<String?>(null)
+
+    init {
+        viewModelScope.launch {
+            driveMessage.value = driveBackup.lastBackupLabel()
+        }
+    }
+
+    fun backupToDrive() {
+        viewModelScope.launch {
+            driveMessage.value = "Backing up to Drive…"
+            driveBackup.backupNow().fold(
+                onSuccess = { driveMessage.value = "Backup uploaded to Drive" },
+                onFailure = { driveMessage.value = "Drive backup failed: ${it.message?.take(120) ?: "error"}" },
+            )
+        }
+    }
+
+    fun restoreFromDrive() {
+        viewModelScope.launch {
+            driveMessage.value = "Restoring from Drive…"
+            driveBackup.restoreLatest().fold(
+                onSuccess = { driveMessage.value = "Restored $it items from Drive" },
+                onFailure = { driveMessage.value = "Drive restore failed: ${it.message?.take(120) ?: "error"}" },
+            )
+        }
+    }
 
     /** One-shot status message for account operations. */
     val accountMessage = MutableStateFlow<String?>(null)
@@ -308,6 +338,7 @@ fun SettingsScreen(
             item {
                 SettingsCard("Backup", Icons.Default.Backup) {
                     BackupSection(vm)
+                    DriveBackupSection(vm)
                 }
             }
             item {
@@ -600,6 +631,44 @@ private fun BackupSection(vm: SettingsViewModel) {
     }
 }
 
+/** G5: Drive AppData backup / restore. Requires sign-in; disabled otherwise. */
+@Composable
+private fun DriveBackupSection(vm: SettingsViewModel) {
+    val message by vm.driveMessage.collectAsState()
+    val account by vm.account.collectAsState()
+    val signedIn = account != null
+
+    Column(Modifier.padding(vertical = 4.dp)) {
+        androidx.compose.material3.HorizontalDivider(Modifier.padding(vertical = 8.dp))
+        Text(
+            "Google Drive backup",
+            style = MaterialTheme.typography.titleSmall,
+        )
+        Text(
+            if (signedIn) {
+                "Store an encrypted-at-rest copy in your Drive's hidden app folder. " +
+                    "Runs daily and keeps the newest 7 backups."
+            } else {
+                "Sign in with Google (Account section) to back up to Drive."
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(
+            Modifier.fillMaxWidth().padding(top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Button(onClick = { vm.backupToDrive() }, enabled = signedIn) { Text("Back up now") }
+            OutlinedButton(onClick = { vm.restoreFromDrive() }, enabled = signedIn) {
+                Text("Restore from Drive")
+            }
+        }
+        message?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+        }
+    }
+}
+
 /** G3: Google account sign-in / sign-out. The app stays fully usable signed out. */
 @Composable
 private fun AccountSection(vm: SettingsViewModel) {
@@ -611,7 +680,7 @@ private fun AccountSection(vm: SettingsViewModel) {
         val session = account
         if (session == null) {
             Text(
-                "Sign in to enable Google Calendar sync and Drive backup (coming in this release). " +
+                "Sign in to enable Google Calendar sync and Drive backup. " +
                     "Everything else works without an account.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

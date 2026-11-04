@@ -19,17 +19,28 @@ class OrvaneApp : Application(), Configuration.Provider {
 
     @Inject lateinit var googleSyncScheduler: com.orvane.app.core.google.GoogleSyncScheduler
 
+    @Inject lateinit var driveBackupScheduler: com.orvane.app.core.google.DriveBackupScheduler
+
     override fun onCreate() {
         super.onCreate()
         createNotificationChannels()
         scheduleAutoBackup()
         scheduleGoogleSync()
+        scheduleDriveBackup()
     }
 
     /** G4d: periodic Google Calendar sync; the worker no-ops when signed out. */
     private fun scheduleGoogleSync() {
         runCatching {
             googleSyncScheduler.schedule()
+        }
+    }
+
+    /** G5: daily Drive backup + catch-up when the last backup is stale. */
+    private fun scheduleDriveBackup() {
+        runCatching {
+            driveBackupScheduler.schedulePeriodic()
+            driveBackupScheduler.scheduleCatchUp()
         }
     }
 
