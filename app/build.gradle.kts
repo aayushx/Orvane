@@ -72,6 +72,14 @@ android {
             isReturnDefaultValues = true
         }
     }
+    sourceSets {
+        // Room migration tests read the exported schema JSONs as assets. They
+        // go into the debug variant (which unit tests merge), not the test
+        // source set — debug APKs carrying schema JSONs is harmless.
+        getByName("debug") {
+            assets.srcDir("$projectDir/schemas")
+        }
+    }
     lint {
         abortOnError = false
         warningsAsErrors = false

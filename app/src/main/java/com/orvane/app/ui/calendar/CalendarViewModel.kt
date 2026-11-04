@@ -240,9 +240,16 @@ class CalendarViewModel @Inject constructor(
     }
 
     /** Blocks a task into the tapped hour slot (task → calendar scheduling). */
-    fun scheduleTaskAt(taskId: String, title: String, start: Long) {
+    fun scheduleTaskAt(taskId: String, title: String, start: Long, durationMinutes: Int? = null) {
         viewModelScope.launch {
-            calendarRepo.scheduleTask(taskId, title, start, start + 3600_000L)
+            // G1: the block spans start → start + duration (1h default).
+            calendarRepo.scheduleTask(
+                taskId,
+                title,
+                start,
+                com.orvane.app.core.calendar.TaskBlocks.endMillis(start, durationMinutes),
+            )
+            taskRepo.setDurationMinutes(taskId, durationMinutes)
             refresh.value += 1
         }
     }

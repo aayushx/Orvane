@@ -198,6 +198,14 @@ fun TaskDetailScreen(
                         )
                     },
                 )
+                // G1: show scheduled length when one is set.
+                com.orvane.app.core.calendar.TaskBlocks.label(t.durationMinutes)?.let { lbl ->
+                    Spacer(Modifier.width(6.dp))
+                    AssistChip(
+                        onClick = { showDueEditor = true },
+                        label = { Text("⏱ $lbl") },
+                    )
+                }
                 Spacer(Modifier.width(6.dp))
                 AssistChip(
                     onClick = { showRepeatEditor = true },

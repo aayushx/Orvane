@@ -18,11 +18,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
@@ -635,17 +638,19 @@ private fun DayColumn(
                     },
             )
         }
-        // task time blocks (due datetime)
+        // task time blocks (due datetime); G1: span start → start + duration
         for (t in tasks) {
             val due = t.due ?: continue
             val lt = Time.toLocalTime(due)
             val top = HOUR_HEIGHT * (lt.hour + lt.minute / 60f)
+            val blockMillis = com.orvane.app.core.calendar.TaskBlocks.blockMillis(t.durationMinutes)
+            val hours = (blockMillis.toFloat() / MILLIS_HOUR).coerceIn(0.4f, 6f)
             Box(
                 Modifier
                     .padding(start = 2.dp, end = 4.dp)
                     .fillMaxWidth()
                     .offset(y = top)
-                    .height(24.dp)
+                    .height(HOUR_HEIGHT * hours)
                     .clip(RoundedCornerShape(6.dp))
                     .background(MaterialTheme.colorScheme.primaryContainer)
                     .clickable {
@@ -655,13 +660,24 @@ private fun DayColumn(
                     .padding(horizontal = 4.dp),
                 contentAlignment = Alignment.TopStart,
             ) {
-                Text(
-                    t.title,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Column {
+                    Text(
+                        t.title,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    // G1: show the duration on the block when one is set.
+                    com.orvane.app.core.calendar.TaskBlocks.label(t.durationMinutes)?.let { lbl ->
+                        Text(
+                            lbl,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f),
+                            maxLines = 1,
+                        )
+                    }
+                }
             }
         }
         // event blocks
@@ -711,6 +727,7 @@ private fun ScheduleInSlotDialog(
     onDismiss: () -> Unit,
     onAddEvent: () -> Unit,
 ) {
+    var durationMinutes by remember { mutableStateOf<Int?>(null) }
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {},
@@ -726,11 +743,45 @@ private fun ScheduleInSlotDialog(
         },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
+                // G1: optional duration for the scheduled block — chips plus a
+                // custom stepper; default none (= today's 1-hour behavior).
+                Text("Duration", style = MaterialTheme.typography.labelMedium)
+                Spacer(Modifier.height(4.dp))
+                Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    FilterChip(
+                        selected = durationMinutes == null,
+                        onClick = { durationMinutes = null },
+                        label = { Text("None") },
+                    )
+                    DURATION_CHOICES.forEach { d ->
+                        FilterChip(
+                            selected = durationMinutes == d,
+                            onClick = { durationMinutes = d },
+                            label = { Text(com.orvane.app.core.calendar.TaskBlocks.label(d)!!) },
+                        )
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = {
+                            durationMinutes = ((durationMinutes ?: 0) + 5).coerceAtMost(480)
+                        }) { Icon(Icons.Default.Add, contentDescription = "Increase duration") }
+                        Text(
+                            durationMinutes?.let { com.orvane.app.core.calendar.TaskBlocks.label(it)!! } ?: "—",
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                        IconButton(onClick = {
+                            durationMinutes = durationMinutes?.let { (it - 5).coerceAtLeast(5) }
+                        }) { Icon(Icons.Default.Remove, contentDescription = "Decrease duration") }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
                 val candidates = state.candidateTasks
                 for (t in candidates.take(10)) {
                     TextButton(
                         onClick = {
-                            vm.scheduleTaskAt(t.id, t.title, Time.at(slot.toLocalDate(), slot.hour, 0))
+                            vm.scheduleTaskAt(t.id, t.title, Time.at(slot.toLocalDate(), slot.hour, 0), durationMinutes)
                             onDismiss()
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -750,6 +801,8 @@ private fun ScheduleInSlotDialog(
         },
     )
 }
+
+private val DURATION_CHOICES = listOf(15, 30, 45, 60, 90, 120)
 
 // ---------------- Agenda ----------------
 

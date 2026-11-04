@@ -93,6 +93,9 @@ data class TaskEntity(
     val sortOrder: Int = 0,            // manual ordering inside parent/list
     val focusSeconds: Long = 0L,       // accumulated focus time
     val pomoCount: Int = 0,
+    // G1: optional scheduled length in minutes; only meaningful when the task
+    // has a date AND time. Null = no duration (block = point event).
+    val durationMinutes: Int? = null,
 )
 
 @Entity(tableName = "reminders", indices = [Index("taskId"), Index("at")])

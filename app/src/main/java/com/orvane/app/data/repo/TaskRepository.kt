@@ -287,6 +287,14 @@ class TaskRepository @Inject constructor(
         OrvaneWidgets.refreshAll(appContext)
     }
 
+    /** G1: scheduled length in minutes (null = none); used by calendar blocks. */
+    suspend fun setDurationMinutes(id: String, minutes: Int?) {
+        taskDao.byId(id)?.let { t ->
+            taskDao.insert(t.copy(durationMinutes = minutes, modifiedAt = System.currentTimeMillis()))
+            OrvaneWidgets.refreshAll(appContext)
+        }
+    }
+
     suspend fun setRecurrenceRule(id: String, rule: String?) {
         taskDao.setRecurrenceRule(id, rule, System.currentTimeMillis())
     }

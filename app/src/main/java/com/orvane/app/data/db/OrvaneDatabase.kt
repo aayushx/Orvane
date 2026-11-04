@@ -22,7 +22,7 @@ import androidx.room.TypeConverters
         AttachmentEntity::class,
         MetaEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -43,5 +43,12 @@ abstract class AppDatabase : RoomDatabase() {
 
     companion object {
         const val NAME = "orvane.db"
+
+        /** G1: tasks gain an optional durationMinutes column (nullable, no default). */
+        val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE tasks ADD COLUMN durationMinutes INTEGER")
+            }
+        }
     }
 }
