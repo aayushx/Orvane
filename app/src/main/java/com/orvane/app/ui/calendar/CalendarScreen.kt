@@ -638,9 +638,12 @@ private fun DayColumn(
                     },
             )
         }
-        // task time blocks (due datetime); G1: span start → start + duration
+        // task time blocks (due datetime); G1: span start → start + duration.
+        // Tasks with a linked event block are skipped — the event block already
+        // represents them (drawing both ghosts the text).
         for (t in tasks) {
             val due = t.due ?: continue
+            if (events.any { it.linkedTaskId == t.id }) continue
             val lt = Time.toLocalTime(due)
             val top = HOUR_HEIGHT * (lt.hour + lt.minute / 60f)
             val blockMillis = com.orvane.app.core.calendar.TaskBlocks.blockMillis(t.durationMinutes)
