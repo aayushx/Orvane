@@ -40,6 +40,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -82,7 +83,17 @@ fun TasksScreen(
 ) {
     val state by vm.state.collectAsState()
     val selection by vm.selection.collectAsState()
+    val matrixFeedback by vm.matrixFeedback.collectAsState()
     val scope = rememberCoroutineScope()
+    // F9: every matrix drop reports exactly what changed, with Undo.
+    LaunchedEffect(matrixFeedback) {
+        val feedback = matrixFeedback ?: return@LaunchedEffect
+        val action = snackbarHostState.showSnackbar(feedback.description, "Undo")
+        if (action == SnackbarResult.ActionPerformed) {
+            vm.undoMatrixMove(feedback)
+        }
+        vm.consumeMatrixFeedback()
+    }
     val showCompletedAtBottom = state.viewKey.startsWith("list:") || state.viewKey == SmartList.COMPLETED
     val inSelection = selection.isNotEmpty()
     var completedExpanded by rememberSaveable { mutableStateOf(true) }

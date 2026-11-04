@@ -352,12 +352,40 @@ class TasksViewModel @Inject constructor(
      * Applies a quadrant drop's (priority/due) semantics, then the reactive
      * snapshot re-buckets every view including the grid itself.
      */
+    /** F9: one-shot feedback for a matrix drop (screen shows snackbar + Undo). */
+    data class MatrixMoveFeedback(
+        val taskId: String,
+        val description: String,
+        val oldPriority: Int,
+        val oldDueMillis: Long?,
+        val dueChanged: Boolean,
+    )
+
+    val matrixFeedback = MutableStateFlow<MatrixMoveFeedback?>(null)
+
     fun commitMatrixMove(taskId: String, quadrant: MatrixQuadrant) {
         viewModelScope.launch {
-            repo.applyMatrixQuadrant(
+            val result = repo.applyMatrixQuadrant(
                 taskId,
                 @Suppress("DEPRECATION") com.orvane.app.data.repo.TaskRepository.MatrixQuadrant.valueOf(quadrant.name),
+            ) ?: return@launch
+            matrixFeedback.value = MatrixMoveFeedback(
+                taskId,
+                result.description,
+                result.oldPriority,
+                result.oldDueMillis,
+                result.dueChanged,
             )
+        }
+    }
+
+    fun consumeMatrixFeedback() {
+        matrixFeedback.value = null
+    }
+
+    fun undoMatrixMove(feedback: MatrixMoveFeedback) {
+        viewModelScope.launch {
+            repo.undoMatrixMove(feedback.taskId, feedback.oldPriority, feedback.oldDueMillis, feedback.dueChanged)
         }
     }
 

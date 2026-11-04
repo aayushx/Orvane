@@ -3,6 +3,7 @@ package com.orvane.app.data.repo
 import android.content.Context
 import android.net.Uri
 import com.orvane.app.core.alarms.AlarmScheduler
+import com.orvane.app.core.matrix.MatrixDropResolver
 import com.orvane.app.core.nl.NaturalLanguageDateParser
 import com.orvane.app.core.recurrence.RecurrenceEngine
 import com.orvane.app.core.util.Time
@@ -670,49 +671,34 @@ class TaskRepository @Inject constructor(
     fun isImportant(task: TaskEntity): Boolean =
         task.priority >= com.orvane.app.data.db.TaskPriority.MEDIUM
 
-    /** Canonical "urgent" due (today 23:59). */
-    private fun endOfTodayDue(): Long = Time.at(java.time.LocalDate.now(), 23, 59)
-
-    /** Canonical "not urgent" due (7 days out, midnight). */
-    private fun nextWeekDue(): Long = Time.startOfDayEpoch(java.time.LocalDate.now().plusDays(7))
-
-    /** Applies the (priority, due) changes implied by dropping a task in a quadrant. */
-    suspend fun applyMatrixQuadrant(taskId: String, quadrant: MatrixQuadrant) = withContext(Dispatchers.IO) {
-        val t = taskDao.byId(taskId) ?: return@withContext
-        val p = com.orvane.app.data.db.TaskPriority
-        var dueChanges: Long? = null
-        when (quadrant) {
-            MatrixQuadrant.DO_FIRST -> {
-                setPriority(taskId, maxOf(t.priority, p.MEDIUM))
-                // Must be URGENT: collapse to today's end-of-day.
-                if (t.due == null || t.due >= Time.startOfDayEpoch(java.time.LocalDate.now().plusDays(2))) {
-                    setDue(taskId, endOfTodayDue())
-                }
+    /** Applies the F9 drop rules and returns what changed (for the snackbar). */
+    suspend fun applyMatrixQuadrant(taskId: String, quadrant: MatrixQuadrant): MatrixDropResolver.Result? =
+        withContext(Dispatchers.IO) {
+            val t = taskDao.byId(taskId) ?: return@withContext null
+            val target = MatrixDropResolver.MatrixTarget.valueOf(quadrant.name)
+            val result = MatrixDropResolver.resolve(
+                taskPriority = t.priority,
+                taskDueMillis = t.due,
+                taskCurrentlyUrgent = isUrgent(t),
+                target = target,
+                today = java.time.LocalDate.now(),
+            )
+            if (result.newPriority != t.priority) {
+                setPriority(taskId, result.newPriority)
             }
-            MatrixQuadrant.SCHEDULE -> {
-                setPriority(taskId, maxOf(t.priority, p.MEDIUM))
-                // NOT urgent: push today/overdue dues to next week.
-                if (t.due != null && t.due < Time.startOfDayEpoch(java.time.LocalDate.now().plusDays(2))) {
-                    setDue(taskId, nextWeekDue())
-                }
+            if (result.dueChanged) {
+                setDue(taskId, result.newDueMillis)
             }
-            MatrixQuadrant.DELEGATE -> {
-                // NOT important: demote to Low.
-                setPriority(taskId, p.LOW)
-                if (t.due == null || t.due >= Time.startOfDayEpoch(java.time.LocalDate.now().plusDays(2))) {
-                    setDue(taskId, endOfTodayDue())
-                }
-            }
-            MatrixQuadrant.LATER -> {
-                // Neither urgent nor important: demote, push out urgent dues.
-                setPriority(taskId, minOf(t.priority, p.LOW))
-                if (t.due != null && t.due < Time.startOfDayEpoch(java.time.LocalDate.now().plusDays(2))) {
-                    setDue(taskId, nextWeekDue())
-                }
-            }
+            OrvaneWidgets.refreshAll(appContext)
+            result
         }
-        OrvaneWidgets.refreshAll(appContext)
-    }
+
+    /** F9: restore priority (and due, when the drop touched it) after Undo. */
+    suspend fun undoMatrixMove(taskId: String, oldPriority: Int, oldDueMillis: Long?, dueChanged: Boolean) =
+        withContext(Dispatchers.IO) {
+            setPriority(taskId, oldPriority)
+            if (dueChanged) setDue(taskId, oldDueMillis)
+        }
 
     suspend fun renameTag(tagId: String, name: String) {
         val clean = name.trim().removePrefix("#")
