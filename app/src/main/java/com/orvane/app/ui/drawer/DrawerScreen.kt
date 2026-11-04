@@ -1,6 +1,7 @@
 package com.orvane.app.ui.drawer
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -59,14 +60,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.orvane.app.BuildConfig
 import com.orvane.app.data.db.FilterEntity
 import com.orvane.app.data.db.FolderEntity
 import com.orvane.app.data.db.ListEntity
@@ -660,16 +664,25 @@ private fun ColorSwatch(color: Int, selected: Boolean, onSelect: () -> Unit) {
 /* ---------- Shared row machinery ---------- */
 
 /**
- * Branded tonal header (Round 2 / C3): wordmark tile + "Orvane" + app version.
- * No account UI — the app is offline-first and has no accounts.
+ * Branded tonal header (Round 2 / C3, F5): the REAL launcher icon (rasterized
+ * from PackageManager — never painterResource on the adaptive-icon XML, which
+ * crashes) + the version number as the wordmark. No account UI.
  */
 @Composable
 private fun DrawerHeader() {
     val tokens = orvaneTokens()
     val ctx = LocalContext.current
-    val version = remember(ctx) {
-        runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }
-            .getOrNull()
+    val density = LocalDensity.current
+    val iconPx = with(density) { 34.dp.toPx() }.toInt()
+    val iconBitmap = remember(ctx, iconPx) {
+        runCatching {
+            val drawable = ctx.packageManager.getApplicationIcon(ctx.packageName)
+            val bmp = android.graphics.Bitmap.createBitmap(iconPx, iconPx, android.graphics.Bitmap.Config.ARGB_8888)
+            val canvas = android.graphics.Canvas(bmp)
+            drawable.setBounds(0, 0, iconPx, iconPx)
+            drawable.draw(canvas)
+            bmp.asImageBitmap()
+        }.getOrNull()
     }
     Surface(
         color = MaterialTheme.colorScheme.primaryContainer,
@@ -688,29 +701,18 @@ private fun DrawerHeader() {
             Modifier.padding(horizontal = tokens.spacing.md, vertical = tokens.spacing.md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                Modifier
-                    .size(34.dp)
-                    .background(MaterialTheme.colorScheme.primary, CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    "O",
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    style = MaterialTheme.typography.titleLarge,
+            if (iconBitmap != null) {
+                Image(
+                    bitmap = iconBitmap,
+                    contentDescription = null,
+                    modifier = Modifier.size(34.dp),
                 )
+            } else {
+                // Defensive fallback: quiet primary dot if icon rasterization fails.
+                Box(Modifier.size(34.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
             }
             Spacer(Modifier.width(tokens.spacing.md))
-            Column {
-                Text("Orvane", style = MaterialTheme.typography.titleLarge)
-                if (version != null) {
-                    Text(
-                        "v$version",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    )
-                }
-            }
+            Text("v${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.titleLarge)
         }
     }
 }
