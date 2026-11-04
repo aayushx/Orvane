@@ -777,6 +777,35 @@ private fun ScheduleInSlotDialog(
                     }
                 }
                 Spacer(Modifier.height(8.dp))
+                // G2: non-blocking conflict warning — recalculated live as the
+                // duration changes; saving proceeds regardless.
+                val slotStart = Time.at(slot.toLocalDate(), slot.hour, 0)
+                val slotEnd = com.orvane.app.core.calendar.TaskBlocks.endMillis(slotStart, durationMinutes)
+                val conflicts = state.weekEvents
+                    .filter { com.orvane.app.core.calendar.Conflicts.overlaps(slotStart, slotEnd, it.start, it.end) }
+                    .take(3)
+                if (conflicts.isNotEmpty()) {
+                    Text(
+                        "⚠ Overlaps:",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                    conflicts.forEach { e ->
+                        val when_ = if (e.allDay) {
+                            "all-day"
+                        } else {
+                            Format.timeOf(e.start).toString() + "–" + Format.timeOf(e.end).toString()
+                        }
+                        Text(
+                            "• “${e.title}” ($when_)",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                }
                 val candidates = state.candidateTasks
                 for (t in candidates.take(10)) {
                     TextButton(
