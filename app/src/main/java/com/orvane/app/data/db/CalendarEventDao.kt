@@ -30,6 +30,15 @@ interface CalendarEventDao {
     @Query("SELECT * FROM calendar_events WHERE source = 0")
     suspend fun locals(): List<CalendarEventEntity>
 
+    @Query("SELECT * FROM calendar_events WHERE googleEventId = :gid LIMIT 1")
+    suspend fun byGoogleEventId(gid: String): CalendarEventEntity?
+
+    @Query("DELETE FROM calendar_events WHERE googleEventId = :gid")
+    suspend fun deleteByGoogleEventId(gid: String)
+
+    @Query("SELECT * FROM calendar_events WHERE source = 3")
+    suspend fun googleEvents(): List<CalendarEventEntity>
+
     @Query("SELECT * FROM calendar_events WHERE id = :id")
     suspend fun byId(id: String): CalendarEventEntity?
 

@@ -71,4 +71,16 @@ abstract class AccountModule {
     @Binds
     @Singleton
     abstract fun bindAccountRepository(impl: com.orvane.app.data.account.GoogleAccountRepository): com.orvane.app.data.account.AccountRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAccessTokenProvider(
+        impl: com.orvane.app.core.google.PlayServicesTokenProvider,
+    ): com.orvane.app.core.google.AccessTokenProvider
+
+    @Binds
+    @Singleton
+    abstract fun bindGoogleCalendarApi(
+        impl: com.orvane.app.data.google.HttpGoogleCalendarApi,
+    ): com.orvane.app.data.google.GoogleCalendarApi
 }

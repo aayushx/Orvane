@@ -148,6 +148,7 @@ dependencies {
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services)
     implementation(libs.google.id)
+    implementation(libs.play.services.auth)
 
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)
