@@ -99,11 +99,12 @@ fun HabitsScreen(vm: HabitsViewModel = hiltViewModel()) {
     var editingId by rememberSaveable { mutableStateOf<String?>(null) }
 
     Column(Modifier.fillMaxSize()) {
+        // F4: the top app bar already titles this tab "Habits" — the in-page
+        // header no longer repeats it; it just hosts the add-habit action.
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Habits", style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.weight(1f))
             IconButton(onClick = { editingId = null; editorOpen = true }) {
                 Icon(Icons.Default.Add, contentDescription = "Add habit")
