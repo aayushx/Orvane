@@ -66,7 +66,8 @@ class FocusViewModel @Inject constructor(
 
     val pomo: StateFlow<PomodoroState> = controller.state
 
-    val selectedNoise = MutableStateFlow(NOISES.first())
+    // F3: default white noise is NONE (""); other options remain selectable.
+    val selectedNoise = MutableStateFlow("")
 
     fun selectNoise(noise: String) {
         selectedNoise.value = noise

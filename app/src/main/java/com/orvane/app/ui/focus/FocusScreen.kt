@@ -379,7 +379,7 @@ private fun TimerView(state: FocusUiState, noise: String, vm: FocusViewModel, on
                 )
             }
             FilterChip(
-                selected = false,
+                selected = noise == "",
                 onClick = { vm.selectNoise("") },
                 label = { Text("None") },
             )
