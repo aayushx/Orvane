@@ -62,6 +62,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.orvane.app.data.db.SmartList
+import com.orvane.app.data.db.TaskEntity
 import com.orvane.app.data.repo.SortKeys
 import com.orvane.app.data.repo.TaskRepository
 import com.orvane.app.ui.common.EmptyState
@@ -69,6 +70,7 @@ import com.orvane.app.ui.common.SectionHeader as TonelSectionHeader
 import com.orvane.app.ui.theme.orvaneTokens
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
@@ -84,6 +86,24 @@ fun TasksScreen(
     val showCompletedAtBottom = state.viewKey.startsWith("list:") || state.viewKey == SmartList.COMPLETED
     val inSelection = selection.isNotEmpty()
     var completedExpanded by rememberSaveable { mutableStateOf(true) }
+    // F1: the check animation never played because completing a task moves it
+    // between two different LazyColumn item lists (active sections vs the
+    // "Completed" section) — the row is disposed and recomposed at its final
+    // state. Flip the DISPLAYED state immediately, let the row animate in
+    // place (~300ms), and only then commit to the VM so the row relocates
+    // after the transition has finished.
+    val pendingToggles = remember { androidx.compose.runtime.mutableStateMapOf<String, Boolean>() }
+    val toggleWithAnimation: (TaskEntity) -> Unit = { task ->
+        val completing = task.completedAt == null
+        if (!pendingToggles.containsKey(task.id)) {
+            pendingToggles[task.id] = completing
+            scope.launch {
+                delay(350)
+                if (completing) vm.complete(task.id) else vm.uncomplete(task.id)
+                pendingToggles.remove(task.id)
+            }
+        }
+    }
     // List/Matrix in-page toggle (v1.2.0 / E6): the Eisenhower matrix lives
     // here now instead of inside Focus. rememberSaveable keeps the choice
     // across config changes; back-stack behavior is unchanged (same screen).
@@ -151,9 +171,7 @@ fun TasksScreen(
                     items(section.tasks, key = { it.id }) { task ->
                         SwipeableRow(
                             enabled = !inSelection,
-                            onComplete = {
-                                if (task.completedAt == null) vm.complete(task.id) else vm.uncomplete(task.id)
-                            },
+                            onComplete = { toggleWithAnimation(task) },
                             onDelete = {
                                 vm.trashSingle(task.id)
                                 val id = task.id
@@ -172,11 +190,10 @@ fun TasksScreen(
                                 tags = state.taskTagNames[task.id].orEmpty(),
                                 subtaskTotal = state.childCounts[task.id]?.second ?: 0,
                                 subtaskDone = state.childCounts[task.id]?.first ?: 0,
+                                completed = pendingToggles[task.id] ?: (task.completedAt != null),
                                 selected = task.id in selection,
                                 inSelectionMode = inSelection,
-                                onToggleComplete = {
-                                    if (task.completedAt == null) vm.complete(task.id) else vm.uncomplete(task.id)
-                                },
+                                onToggleComplete = { toggleWithAnimation(task) },
                                 onToggleSelect = { vm.toggleSelect(task.id) },
                                 onClick = { onOpenTask(task.id) },
                             )
@@ -210,9 +227,10 @@ fun TasksScreen(
                                 tags = state.taskTagNames[task.id].orEmpty(),
                                 subtaskTotal = state.childCounts[task.id]?.second ?: 0,
                                 subtaskDone = state.childCounts[task.id]?.first ?: 0,
+                                completed = pendingToggles[task.id] ?: (task.completedAt != null),
                                 selected = task.id in selection,
                                 inSelectionMode = inSelection,
-                                onToggleComplete = { vm.uncomplete(task.id) },
+                                onToggleComplete = { toggleWithAnimation(task) },
                                 onToggleSelect = { vm.toggleSelect(task.id) },
                                 onClick = { onOpenTask(task.id) },
                             )
