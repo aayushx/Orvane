@@ -54,10 +54,20 @@ data class CalendarUiState(
 class CalendarViewModel @Inject constructor(
     private val calendarRepo: CalendarRepository,
     private val taskRepo: TaskRepository,
+    private val googleSync: com.orvane.app.data.google.GoogleCalendarSync,
 ) : ViewModel() {
 
     val month = MutableStateFlow(YearMonth.now())
     val selected = MutableStateFlow(LocalDate.now())
+
+    /** G4d: last Google sync status line (null = never synced / hidden). */
+    val googleSyncMessage = MutableStateFlow<String?>(null)
+
+    init {
+        viewModelScope.launch {
+            googleSyncMessage.value = googleSync.lastSyncLabel()
+        }
+    }
 
     /** Bumped when suspending writes change DB state so query-based flows refresh. */
     private val refresh = MutableStateFlow(0)
@@ -269,6 +279,25 @@ class CalendarViewModel @Inject constructor(
                 n == -2 -> "Device calendar unavailable"
                 else -> "Synced $n device events"
             }
+            refresh.value += 1
+        }
+    }
+
+    /** G4d: manual two-way Google Calendar sync. */
+    fun syncGoogleNow() {
+        viewModelScope.launch {
+            googleSyncMessage.value = "Syncing with Google…"
+            googleSync.syncNow().fold(
+                onSuccess = { (pulled, pushed) ->
+                    googleSyncMessage.value = "Google sync — $pulled pulled, $pushed pushed"
+                },
+                onFailure = { e ->
+                    googleSyncMessage.value = "Google sync failed: ${e.message?.take(120) ?: "error"}"
+                },
+            )
+            googleSync.recordLastSync(
+                googleSyncMessage.value?.removePrefix("Google sync — ") ?: "done",
+            )
             refresh.value += 1
         }
     }

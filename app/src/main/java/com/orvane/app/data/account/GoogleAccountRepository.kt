@@ -36,6 +36,7 @@ interface AccountRepository {
 class GoogleAccountRepository @Inject constructor(
     @ApplicationContext private val context: android.content.Context,
     private val store: AccountSessionStore,
+    private val syncScheduler: com.orvane.app.core.google.GoogleSyncScheduler,
 ) : AccountRepository {
     override val session: Flow<AccountSession?> = store.session
 
@@ -80,5 +81,8 @@ class GoogleAccountRepository @Inject constructor(
             CredentialManager.create(context).clearCredentialState(ClearCredentialStateRequest())
         }
         store.clear()
+        // G4d: stop the periodic sync worker; it no-ops when signed out, but
+        // cancelling keeps the job list clean.
+        runCatching { syncScheduler.cancel() }
     }
 }

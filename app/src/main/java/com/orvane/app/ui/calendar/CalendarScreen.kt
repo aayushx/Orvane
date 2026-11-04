@@ -30,6 +30,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -101,8 +102,20 @@ fun CalendarScreen(vm: CalendarViewModel = hiltViewModel()) {
             IconButton(onClick = { vm.syncDeviceCalendars() }) {
                 Icon(Icons.Default.Sync, contentDescription = "Sync device calendars")
             }
+            IconButton(onClick = { vm.syncGoogleNow() }) {
+                Icon(Icons.Default.CloudSync, contentDescription = "Sync with Google Calendar")
+            }
         }
         state.syncMessage?.let {
+            Text(
+                it,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+        }
+        val googleMsg by vm.googleSyncMessage.collectAsState()
+        googleMsg?.let {
             Text(
                 it,
                 style = MaterialTheme.typography.labelSmall,

@@ -17,10 +17,20 @@ class OrvaneApp : Application(), Configuration.Provider {
 
     @Inject lateinit var workerFactory: HiltWorkerFactory
 
+    @Inject lateinit var googleSyncScheduler: com.orvane.app.core.google.GoogleSyncScheduler
+
     override fun onCreate() {
         super.onCreate()
         createNotificationChannels()
         scheduleAutoBackup()
+        scheduleGoogleSync()
+    }
+
+    /** G4d: periodic Google Calendar sync; the worker no-ops when signed out. */
+    private fun scheduleGoogleSync() {
+        runCatching {
+            googleSyncScheduler.schedule()
+        }
     }
 
     /** Automatic daily JSON backup; keeps the newest 7 files. */

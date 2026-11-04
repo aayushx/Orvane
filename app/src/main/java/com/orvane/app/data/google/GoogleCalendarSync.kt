@@ -31,10 +31,21 @@ class GoogleCalendarSync @Inject constructor(
         const val CALENDAR_NAME = "Orvane"
         private const val KEY_SYNC_TOKEN = "gcal_sync_token"
         private const val KEY_CALENDAR_ID = "gcal_calendar_id"
+        private const val KEY_LAST_SYNC = "gcal_last_sync"
 
         /** Full pull window when no (or an expired) sync token exists. */
         const val FULL_PULL_DAYS = 90L
     }
+
+    /** G4d: stores a human-readable summary of the last sync attempt. */
+    suspend fun recordLastSync(summary: String) {
+        val stamp = java.text.SimpleDateFormat("MMM d, HH:mm", java.util.Locale.getDefault())
+            .format(java.util.Date())
+        metaDao.put(MetaEntity(KEY_LAST_SYNC, "$stamp — $summary"))
+    }
+
+    /** G4d: last sync status line for the calendar header, or null when never synced. */
+    suspend fun lastSyncLabel(): String? = metaDao.get(KEY_LAST_SYNC)?.value
 
     /** Pulls remote changes into the local DB. Returns the number of applied events. */
     suspend fun pull(): Result<Int> = withContext(Dispatchers.IO) {
