@@ -49,7 +49,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.orvane.app.core.ai.AiClient
 import com.orvane.app.core.nl.NaturalLanguageDateParser
 import com.orvane.app.ui.common.Format
-import com.orvane.app.ui.common.GrabHandle
 import com.orvane.app.ui.theme.orvaneTokens
 import androidx.compose.foundation.shape.RoundedCornerShape
 
@@ -114,7 +113,8 @@ fun QuickAddSheet(
     val focusRequester = remember { FocusRequester() }
 
     ModalBottomSheet(onDismissRequest = onDismiss, shape = RoundedCornerShape(topStart = tokens.corners.sheet, topEnd = tokens.corners.sheet)) {
-        GrabHandle(Modifier.align(Alignment.CenterHorizontally))
+        // F6: ModalBottomSheet already draws its own drag handle — the custom
+        // GrabHandle here produced TWO handles. The built-in one stays.
         Column(Modifier.padding(horizontal = tokens.spacing.lg, vertical = tokens.spacing.sm)) {
             Text("Quick add", style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.height(tokens.spacing.xs))
