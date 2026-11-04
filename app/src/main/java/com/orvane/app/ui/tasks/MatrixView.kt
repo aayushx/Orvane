@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -46,11 +48,14 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import com.orvane.app.data.db.TaskEntity
 import com.orvane.app.ui.theme.priorityColor
@@ -296,33 +301,71 @@ private fun allTaskTitles(cells: Map<MatrixQuadrant, List<TaskEntity>>, id: Stri
     return ""
 }
 
+/**
+ * F7: X-axis labels ("URGENT" / "NOT URGENT") must always render fully —
+ * single line, letter-spaced, auto-shrinking within 8–11sp instead of
+ * wrapping or clipping.
+ */
 @Composable
 private fun AxisLabel(
     text: String,
     modifier: Modifier = Modifier,
     centered: Boolean = true,
 ) {
-    Text(
+    BasicText(
         text = text,
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        style = MaterialTheme.typography.labelSmall.copy(
+            letterSpacing = 1.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        ),
+        maxLines = 1,
+        softWrap = false,
+        autoSize = TextAutoSize.StepBased(minFontSize = 8.sp, maxFontSize = 11.sp),
         modifier = modifier.padding(vertical = 2.dp),
     )
 }
 
+/**
+ * F7: Y-axis labels ("IMPORTANT" / "NOT IMPORTANT") are drawn rotated -90°,
+ * so their natural width must be measured against the AVAILABLE HEIGHT of
+ * the row, not the 38dp column width they sit in (that measurement mismatch
+ * is what truncated them). A custom Layout measures the text with unbounded
+ * width, then centers it; the graphicsLayer rotation renders it vertically.
+ */
 @Composable
 private fun SideAxisLabel(text: String, modifier: Modifier = Modifier) {
     Box(modifier, contentAlignment = Alignment.Center) {
-        Text(
-            text,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            modifier = Modifier.graphicsLayer {
-                rotationZ = -90f
-                transformOrigin = TransformOrigin(0.5f, 0.5f)
+        Layout(
+            content = {
+                BasicText(
+                    text = text,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        letterSpacing = 1.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier.graphicsLayer {
+                        rotationZ = -90f
+                        transformOrigin = TransformOrigin(0.5f, 0.5f)
+                    },
+                )
             },
-        )
+        ) { measurables, constraints ->
+            val maxTextWidth = if (constraints.maxHeight != Constraints.Infinity) {
+                constraints.maxHeight
+            } else {
+                Constraints.Infinity
+            }
+            val placeable = measurables[0].measure(
+                Constraints(maxWidth = maxTextWidth, minHeight = 0, maxHeight = constraints.maxHeight),
+            )
+            layout(constraints.maxWidth, constraints.maxHeight) {
+                val x = ((constraints.maxWidth - placeable.width) / 2f).roundToInt()
+                val y = ((constraints.maxHeight - placeable.height) / 2f).roundToInt()
+                placeable.placeRelative(x, y)
+            }
+        }
     }
 }
 
