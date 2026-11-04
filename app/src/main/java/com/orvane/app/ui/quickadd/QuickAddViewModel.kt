@@ -28,6 +28,11 @@ class QuickAddViewModel @Inject constructor(
     /** Live NL parse of [text]. */
     val parsed = kotlinx.coroutines.flow.MutableStateFlow<NaturalLanguageDateParser.Parsed?>(null)
 
+    /** F8: existing list names, so the preview can resolve #hashtags to lists. */
+    val listNames: StateFlow<List<String>> = repo.observeLists()
+        .map { lists -> lists.map { it.name } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(4000), emptyList())
+
     /** State of the optional AI assist (only works when a key is configured). */
     val aiBusy = MutableStateFlow(false)
     val aiMessage = MutableStateFlow<String?>(null)

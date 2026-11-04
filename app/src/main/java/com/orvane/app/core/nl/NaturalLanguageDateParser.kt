@@ -26,6 +26,27 @@ object NaturalLanguageDateParser {
         val tags: List<String>,
     )
 
+    /**
+     * F8: outcome of resolving quick-add hashtags against the existing list
+     * names. A hashtag that case-insensitively matches a LIST name assigns the
+     * task to that list (and is dropped from the tag set — a same-named tag
+     * never wins); hashtags with no list match stay ordinary tags.
+     */
+    data class HashtagResolution(
+        val listName: String?,
+        val remainingTags: List<String>,
+    )
+
+    fun resolveHashtags(hashtags: List<String>, listNames: List<String>): HashtagResolution {
+        val matched = hashtags.firstOrNull { hashtag ->
+            listNames.any { it.equals(hashtag, ignoreCase = true) }
+        } ?: return HashtagResolution(listName = null, remainingTags = hashtags)
+        return HashtagResolution(
+            listName = listNames.first { it.equals(matched, ignoreCase = true) },
+            remainingTags = hashtags - matched,
+        )
+    }
+
     const val NO_PRIORITY = 0
     const val PRIORITY_LOW = 1
     const val PRIORITY_MEDIUM = 2

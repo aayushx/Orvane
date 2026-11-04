@@ -217,7 +217,16 @@ class TaskRepository @Inject constructor(
         // task was silently never created (Phase D). TickTick-style fallback:
         // keep the raw text as the title when parsing leaves nothing behind.
         val fallbackTitle = parsed.title.ifBlank { clean }
-        val targetList = listId ?: settingsRepository.current().defaultListId
+        // F8: a hashtag that names an existing list (case-insensitive) assigns
+        // the task to that list instead of the default/Inbox list; it also
+        // stops being a tag (list match beats a same-named tag).
+        val lists = listDao.all()
+        val hashtagResolution = NaturalLanguageDateParser.resolveHashtags(
+            parsed.tags,
+            lists.map { it.name },
+        )
+        val hashtagList = lists.firstOrNull { it.name == hashtagResolution.listName }
+        val targetList = listId ?: hashtagList?.id ?: settingsRepository.current().defaultListId
         val task = TaskEntity(
             id = newId(),
             parentId = isSubtaskOf,
@@ -231,7 +240,7 @@ class TaskRepository @Inject constructor(
             sortOrder = (taskDao.maxSortOrder() ?: 0) + 1,
         )
         taskDao.insert(task)
-        for (tagName in parsed.tags) {
+        for (tagName in hashtagResolution.remainingTags) {
             val tag = ensureTagNamed(tagName)
             tagDao.addRef(TaskTagCrossRef(task.id, tag.id))
         }

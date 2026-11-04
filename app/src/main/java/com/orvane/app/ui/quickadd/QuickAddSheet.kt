@@ -163,7 +163,7 @@ fun QuickAddSheet(
             // actually in the tree, so the focus target exists by then.
             LaunchedEffect(Unit) { focusRequester.requestFocus() }
             Spacer(Modifier.height(tokens.spacing.lg))
-            ParsePreviewRow(parsed)
+            ParsePreviewRow(parsed, vm.listNames.collectAsState().value)
             Spacer(Modifier.height(tokens.spacing.lg))
             aiMessage?.let { msg ->
                 Text(
@@ -234,7 +234,10 @@ private fun Modifier.semanticsVoiceDescription(): Modifier = this
 
 /** Live NL parsing preview while typing. */
 @Composable
-private fun ParsePreviewRow(parsed: NaturalLanguageDateParser.Parsed?) {
+private fun ParsePreviewRow(
+    parsed: NaturalLanguageDateParser.Parsed?,
+    listNames: List<String> = emptyList(),
+) {
     val tokens = orvaneTokens()
     Row(
         Modifier
@@ -265,7 +268,16 @@ private fun ParsePreviewRow(parsed: NaturalLanguageDateParser.Parsed?) {
             AssistChip(onClick = {}, label = { Text("\uD83D\uDEA9 " + Format.priorityName(parsed.priority)) })
             Spacer(Modifier.width(tokens.spacing.xs))
         }
-        for (tag in parsed?.tags ?: emptyList()) {
+        // F8: a hashtag matching an existing list name assigns the LIST and is
+        // not a tag anymore — preview shows "→ List: Name" for it.
+        val resolution = parsed?.let {
+            NaturalLanguageDateParser.resolveHashtags(it.tags, listNames)
+        }
+        if (resolution?.listName != null) {
+            AssistChip(onClick = {}, label = { Text("→ List: ${resolution.listName}") })
+            Spacer(Modifier.width(tokens.spacing.xs))
+        }
+        for (tag in resolution?.remainingTags ?: parsed?.tags ?: emptyList()) {
             AssistChip(onClick = {}, label = { Text("#$tag") })
             Spacer(Modifier.width(tokens.spacing.xs))
         }

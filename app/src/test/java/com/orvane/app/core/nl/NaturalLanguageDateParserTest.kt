@@ -132,4 +132,48 @@ class NaturalLanguageDateParserTest {
         assertEquals(b.due!!.toLocalDateTime(), a.due!!.toLocalDateTime())
         assertTrue(a.title.contains("title"))
     }
+
+    // ---- F8: hashtags resolve to Lists when a list name matches ----
+
+    @Test
+    fun `hashtag exact list match assigns list`() {
+        val r = NaturalLanguageDateParser.resolveHashtags(
+            listOf("work"),
+            listOf("Inbox", "Work", "Personal"),
+        )
+        assertEquals("Work", r.listName)
+        assertTrue(r.remainingTags.isEmpty())
+    }
+
+    @Test
+    fun `hashtag case-insensitive list match assigns list`() {
+        val r = NaturalLanguageDateParser.resolveHashtags(
+            listOf("personal"),
+            listOf("Personal"),
+        )
+        assertEquals("Personal", r.listName)
+        assertTrue(r.remainingTags.isEmpty())
+    }
+
+    @Test
+    fun `hashtag with no list match stays a tag`() {
+        val r = NaturalLanguageDateParser.resolveHashtags(
+            listOf("urgent"),
+            listOf("Work", "Personal"),
+        )
+        assertEquals(null, r.listName)
+        assertEquals(listOf("urgent"), r.remainingTags)
+    }
+
+    @Test
+    fun `list name beats same-named tag`() {
+        // #work matches BOTH a list "Work" and a tag "work" — the list wins and
+        // the hashtag is dropped from the tag set entirely.
+        val r = NaturalLanguageDateParser.resolveHashtags(
+            listOf("work", "home"),
+            listOf("Work"),
+        )
+        assertEquals("Work", r.listName)
+        assertEquals(listOf("home"), r.remainingTags)
+    }
 }
