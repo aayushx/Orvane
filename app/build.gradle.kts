@@ -15,8 +15,8 @@ android {
         applicationId = "com.orvane.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.2.1"
+        versionCode = 4
+        versionName = "1.3.0"
 
         testInstrumentationRunner = "com.orvane.app.OrvaneTestRunner"
         vectorDrawables {
