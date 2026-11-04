@@ -25,6 +25,8 @@ espresso = "3.7.0"
 composeUiTest = "1.7.0"
 runner = "1.7.0"
 splashscreen = "1.0.1"
+credentials = "1.6.0"
+googleid = "1.1.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -76,6 +78,11 @@ androidx-glance-material3 = { group = "androidx.glance", name = "glance-material
 # Media / Biometric
 androidx-biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
 androidx-media = { group = "androidx.media", name = "media", version.ref = "media" }
+
+# Google Identity (Credential Manager sign-in, G3)
+androidx-credentials = { group = "androidx.credentials", name = "credentials", version.ref = "credentials" }
+androidx-credentials-play-services = { group = "androidx.credentials", name = "credentials-play-services-auth", version.ref = "credentials" }
+google-id = { group = "com.google.android.libraries.identity.googleid", name = "googleid", version.ref = "googleid" }
 
 # Coroutines / serialization
 coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }

@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.ColorLens
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.SelfImprovement
@@ -83,10 +84,39 @@ class SettingsViewModel @Inject constructor(
     private val settings: SettingsRepository,
     private val backupRepo: BackupRepository,
     private val habitRepo: HabitRepository,
+    private val accountRepo: com.orvane.app.data.account.AccountRepository,
 ) : ViewModel() {
 
     val state: StateFlow<AppSettings?> = settings.settings
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(4000), null)
+
+    /** G3: signed-in Google account (null = signed out). */
+    val account: StateFlow<com.orvane.app.data.account.AccountSession?> = accountRepo.session
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(4000), null)
+
+    val isGoogleConfigured: Boolean = accountRepo.isConfigured
+
+    /** One-shot status message for account operations. */
+    val accountMessage = MutableStateFlow<String?>(null)
+
+    fun signIn(activity: android.app.Activity) {
+        viewModelScope.launch {
+            accountRepo.signIn(activity)
+                .onSuccess { accountMessage.value = "Signed in as ${it.displayName.ifBlank { it.email }}" }
+                .onFailure { accountMessage.value = it.message ?: "Sign-in failed" }
+        }
+    }
+
+    fun signOut() {
+        viewModelScope.launch {
+            accountRepo.signOut()
+            accountMessage.value = "Signed out"
+        }
+    }
+
+    fun clearAccountMessage() {
+        accountMessage.value = null
+    }
 
     /** One-shot status message for backup operations. */
     val backupMessage = MutableStateFlow<String?>(null)
@@ -268,6 +298,11 @@ fun SettingsScreen(
             item {
                 SettingsCard("App lock", Icons.Default.Lock) {
                     AppLockSection(s, vm)
+                }
+            }
+            item {
+                SettingsCard("Account", Icons.Default.Person) {
+                    AccountSection(vm)
                 }
             }
             item {
@@ -565,9 +600,52 @@ private fun BackupSection(vm: SettingsViewModel) {
     }
 }
 
+/** G3: Google account sign-in / sign-out. The app stays fully usable signed out. */
 @Composable
-private fun AiSection(s: AppSettings, vm: SettingsViewModel) {
-    var baseUrl by remember(s.aiBaseUrl) { mutableStateOf(s.aiBaseUrl) }
+private fun AccountSection(vm: SettingsViewModel) {
+    val account by vm.account.collectAsState()
+    val message by vm.accountMessage.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    Column(Modifier.padding(vertical = 4.dp)) {
+        val session = account
+        if (session == null) {
+            Text(
+                "Sign in to enable Google Calendar sync and Drive backup (coming in this release). " +
+                    "Everything else works without an account.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Button(
+                onClick = { (context as? android.app.Activity)?.let { vm.signIn(it) } },
+                enabled = vm.isGoogleConfigured && context is android.app.Activity,
+            ) { Text("Sign in with Google") }
+            if (!vm.isGoogleConfigured) {
+                Text(
+                    "Not configured — add GOOGLE_WEB_CLIENT_ID to local.properties (docs/GOOGLE_SETUP.md).",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        } else {
+            Text(session.displayName.ifBlank { session.email }, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                session.email,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedButton(onClick = { vm.signOut() }, modifier = Modifier.padding(top = 6.dp)) {
+                Text("Sign out")
+            }
+        }
+        message?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+        }
+    }
+}
+
+@Composable
+private fun AiSection(s: AppSettings, vm: SettingsViewModel) {    var baseUrl by remember(s.aiBaseUrl) { mutableStateOf(s.aiBaseUrl) }
     var apiKey by remember(s.aiApiKey) { mutableStateOf(s.aiApiKey) }
     var model by remember(s.aiModel) { mutableStateOf(s.aiModel) }
 

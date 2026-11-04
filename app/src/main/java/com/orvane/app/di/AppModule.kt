@@ -62,3 +62,13 @@ abstract class SchedulerModule {
     @Singleton
     abstract fun bindAlarmScheduler(impl: AndroidAlarmScheduler): AlarmScheduler
 }
+
+/** G3: binds the Google account repository behind its interface. */
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class AccountModule {
+
+    @Binds
+    @Singleton
+    abstract fun bindAccountRepository(impl: com.orvane.app.data.account.GoogleAccountRepository): com.orvane.app.data.account.AccountRepository
+}

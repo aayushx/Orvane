@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -33,6 +35,19 @@ android {
         targetSdk = 36
         versionCode = 4
         versionName = "1.3.0"
+
+        // G3: Google Web client ID (the ID-token audience) comes from
+        // local.properties so no OAuth value is ever committed. Empty means
+        // "not configured" — the app stays fully usable signed out.
+        val localProps = Properties().apply {
+            val f = rootProject.file("local.properties")
+            if (f.exists()) f.inputStream().use { load(it) }
+        }
+        buildConfigField(
+            "String",
+            "GOOGLE_WEB_CLIENT_ID",
+            "\"${localProps.getProperty("GOOGLE_WEB_CLIENT_ID", "")}\"",
+        )
 
         testInstrumentationRunner = "com.orvane.app.OrvaneTestRunner"
         vectorDrawables {
@@ -128,6 +143,11 @@ dependencies {
 
     implementation(libs.androidx.biometric)
     implementation(libs.androidx.media)
+
+    // Google Identity (G3): Credential Manager + Google ID token.
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services)
+    implementation(libs.google.id)
 
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)
