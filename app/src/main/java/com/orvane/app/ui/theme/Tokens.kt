@@ -64,11 +64,11 @@ data class OrvaneTokens(
     val cardBorder: Color,
 )
 
-/** Marker-free success/warning pairs, tuned for AA contrast per scheme stepped brightness. */
-private val SuccessLight = Color(0xFF0F7A44)
-private val SuccessDark = Color(0xFF6FD694)
-private val WarningLight = Color(0xFFB25E00)
-private val WarningDark = Color(0xFFFFB86D)
+/** Marker-free success/warning pairs (F2-muted), tuned for AA contrast per scheme. */
+private val SuccessLight = Color(0xFF2E7052)
+private val SuccessDark = Color(0xFF7CCB9B)
+private val WarningLight = Color(0xFF906713)
+private val WarningDark = Color(0xFFE2B269)
 
 /**
  * Pure derivation so unit tests pin the mapping; the composable provider
