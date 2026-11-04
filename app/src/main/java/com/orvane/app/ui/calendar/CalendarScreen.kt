@@ -706,29 +706,31 @@ private fun DayColumn(
                     .clickable { onBlockTapped(e.id) }
                     .padding(3.dp),
             ) {
-                Text(
-                    e.title,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (e.linkedTaskId != null) {
-                        MaterialTheme.colorScheme.onSecondaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.onTertiaryContainer
-                    },
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                // G1: linked task blocks show their scheduled length (the task
-                // block underneath is covered by this event block).
-                if (e.linkedTaskId != null && !e.allDay) {
-                    com.orvane.app.core.calendar.TaskBlocks.label(
-                        ((e.end - e.start) / 60_000L).toInt(),
-                    )?.let { lbl ->
-                        Text(
-                            lbl,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.75f),
-                            maxLines = 1,
-                        )
+                Column {
+                    Text(
+                        e.title,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (e.linkedTaskId != null) {
+                            MaterialTheme.colorScheme.onSecondaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onTertiaryContainer
+                        },
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    // G1: linked task blocks show their scheduled length (the
+                    // task block underneath is covered by this event block).
+                    if (e.linkedTaskId != null && !e.allDay) {
+                        com.orvane.app.core.calendar.TaskBlocks.label(
+                            ((e.end - e.start) / 60_000L).toInt(),
+                        )?.let { lbl ->
+                            Text(
+                                lbl,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.75f),
+                                maxLines = 1,
+                            )
+                        }
                     }
                 }
             }
