@@ -141,3 +141,7 @@ dependencies {
     androidTestImplementation(libs.androidx.test.rules)
     androidTestImplementation(libs.room.testing.runtime)
 }
+
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
