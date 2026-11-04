@@ -20,6 +20,7 @@ object GoogleCalendarModels {
         val start: DateTime? = null,
         val end: DateTime? = null,
         val status: String? = null,
+        val updated: String? = null,
         val recurrence: List<String>? = null,
     )
 
