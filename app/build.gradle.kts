@@ -11,6 +11,22 @@ android {
     namespace = "com.orvane.app"
     compileSdk = 36
 
+    // Stable debug signature: a project-local keystore (gitignored) survives
+    // ~/.android being wiped, so `adb install -r` upgrades keep working across
+    // machines and OS reinstalls. Falls back to the default debug keystore
+    // when the file is absent (fresh clones).
+    val pinnedDebugStore = rootProject.file("keystore/orvane-debug.keystore")
+    signingConfigs {
+        getByName("debug") {
+            if (pinnedDebugStore.exists()) {
+                storeFile = pinnedDebugStore
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
+    }
+
     defaultConfig {
         applicationId = "com.orvane.app"
         minSdk = 26
