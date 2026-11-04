@@ -22,7 +22,7 @@ import androidx.room.TypeConverters
         AttachmentEntity::class,
         MetaEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -48,6 +48,14 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE tasks ADD COLUMN durationMinutes INTEGER")
+            }
+        }
+
+        /** G4: calendar events gain Google sync bookkeeping columns. */
+        val MIGRATION_2_3 = object : androidx.room.migration.Migration(2, 3) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE calendar_events ADD COLUMN googleEventId TEXT")
+                db.execSQL("ALTER TABLE calendar_events ADD COLUMN lastSyncedAt INTEGER")
             }
         }
     }

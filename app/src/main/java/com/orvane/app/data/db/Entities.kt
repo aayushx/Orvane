@@ -58,6 +58,7 @@ object EventSource {
     const val LOCAL = 0
     const val DEVICE = 1
     const val ICS = 2
+    const val GOOGLE = 3
 }
 
 /**
@@ -221,6 +222,10 @@ data class CalendarEventEntity(
     val deviceCalendarId: Long? = null,
     val feedId: String? = null,           // IcsFeedEntity.id when source==ICS
     val linkedTaskId: String? = null,     // task that was blocked into a slot
+    // G4: Google Calendar sync bookkeeping. googleEventId is the remote event
+    // id on the "Orvane" calendar; lastSyncedAt guards against echo loops.
+    val googleEventId: String? = null,
+    val lastSyncedAt: Long? = null,
 )
 
 @Entity(tableName = "ics_feeds", indices = [Index(value = ["url"], unique = true)])
