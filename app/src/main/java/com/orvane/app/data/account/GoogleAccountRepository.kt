@@ -48,6 +48,14 @@ class GoogleAccountRepository @Inject constructor(
         if (clientId.isBlank()) {
             error("Google sign-in is not configured — add GOOGLE_WEB_CLIENT_ID to local.properties (docs/GOOGLE_SETUP.md)")
         }
+        if (BuildConfig.DEBUG) {
+            // Temporary OrvaneAuth diagnostics: masked client id (last 6 chars)
+            // + option flags. Never logged: tokens, full ids, account details.
+            android.util.Log.d(
+                "OrvaneAuth",
+                "signIn: serverClientId suffix=${clientId.takeLast(6)} filterByAuthorizedAccounts=false autoSelect=false",
+            )
+        }
         val manager = CredentialManager.create(context)
         val request = GetCredentialRequest.Builder()
             .addCredentialOption(
@@ -58,7 +66,14 @@ class GoogleAccountRepository @Inject constructor(
                     .build(),
             )
             .build()
-        val response = manager.getCredential(activity, request)
+        val response = try {
+            manager.getCredential(activity, request)
+        } catch (e: Exception) {
+            if (BuildConfig.DEBUG) {
+                android.util.Log.w("OrvaneAuth", "getCredential failed: ${e.javaClass.simpleName}: ${e.message}")
+            }
+            throw e
+        }
         val credential = response.credential
         if (credential is CustomCredential &&
             credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
