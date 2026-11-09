@@ -33,8 +33,8 @@ android {
         applicationId = "com.orvane.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 4
-        versionName = "1.3.0"
+        versionCode = 5
+        versionName = "1.3.1"
 
         // G3: Google Web client ID (the ID-token audience) comes from
         // local.properties so no OAuth value is ever committed. Empty means
