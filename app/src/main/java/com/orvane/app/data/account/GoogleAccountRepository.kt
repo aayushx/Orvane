@@ -49,11 +49,13 @@ class GoogleAccountRepository @Inject constructor(
             error("Google sign-in is not configured — add GOOGLE_WEB_CLIENT_ID to local.properties (docs/GOOGLE_SETUP.md)")
         }
         if (BuildConfig.DEBUG) {
-            // Temporary OrvaneAuth diagnostics: masked client id (last 6 chars)
-            // + option flags. Never logged: tokens, full ids, account details.
+            // Temporary OrvaneAuth diagnostics: masked client id (last 6 chars
+            // of the unique segment, domain suffix stripped) + option flags.
+            // Never logged: tokens, secrets, account details.
+            val masked = clientId.removeSuffix(".apps.googleusercontent.com").takeLast(6)
             android.util.Log.d(
                 "OrvaneAuth",
-                "signIn: serverClientId suffix=${clientId.takeLast(6)} filterByAuthorizedAccounts=false autoSelect=false",
+                "signIn: serverClientId suffix=$masked filterByAuthorizedAccounts=false autoSelect=false",
             )
         }
         val manager = CredentialManager.create(context)
