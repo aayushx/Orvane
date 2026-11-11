@@ -85,6 +85,7 @@ class SettingsViewModel @Inject constructor(
     private val backupRepo: BackupRepository,
     private val habitRepo: HabitRepository,
     private val accountRepo: com.orvane.app.data.account.AccountRepository,
+    private val tokenProvider: com.orvane.app.core.google.AccessTokenProvider,
     private val driveBackup: com.orvane.app.data.google.DriveBackupSync,
 ) : ViewModel() {
 
@@ -141,6 +142,19 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             accountRepo.signOut()
             accountMessage.value = "Signed out"
+        }
+    }
+
+    /** Recovery path: (re-)run the interactive scope consent for Calendar/Drive. */
+    fun requestScopeConsent(activity: android.app.Activity) {
+        viewModelScope.launch {
+            accountMessage.value = "Requesting Calendar & Drive access…"
+            runCatching { tokenProvider.accessToken(activity) }.fold(
+                onSuccess = { token ->
+                    accountMessage.value = if (token != null) "Access granted" else "No session — sign in first"
+                },
+                onFailure = { accountMessage.value = it.message ?: "Access request failed" },
+            )
         }
     }
 
@@ -705,6 +719,12 @@ private fun AccountSection(vm: SettingsViewModel) {
             )
             OutlinedButton(onClick = { vm.signOut() }, modifier = Modifier.padding(top = 6.dp)) {
                 Text("Sign out")
+            }
+            OutlinedButton(
+                onClick = { (context as? android.app.Activity)?.let { vm.requestScopeConsent(it) } },
+                enabled = context is android.app.Activity,
+            ) {
+                Text("Grant Calendar & Drive access")
             }
         }
         message?.let {

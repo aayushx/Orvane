@@ -1,6 +1,7 @@
 package com.orvane.app.core.google
 
 import android.app.Activity
+import java.io.IOException
 
 /**
  * G4/G5: access tokens for Google APIs (Calendar, Drive AppData). Credential
@@ -23,3 +24,14 @@ interface AccessTokenProvider {
         const val SCOPE_DRIVE_APPDATA = "https://www.googleapis.com/auth/drive.appdata"
     }
 }
+
+/**
+ * Raised when the account session exists but the stored account has never
+ * granted the Calendar/Drive scopes (first-use consent pending, or revoked).
+ * Carries the recoverable flow so callers can distinguish it from a true
+ * "not signed in" state — never report this as "Not signed in".
+ */
+class ScopeConsentRequiredException(
+    message: String,
+    cause: Throwable,
+) : IOException(message, cause)

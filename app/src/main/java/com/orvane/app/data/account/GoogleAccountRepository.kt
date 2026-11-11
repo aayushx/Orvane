@@ -8,6 +8,7 @@ import androidx.credentials.GetCredentialRequest
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.orvane.app.BuildConfig
+import com.orvane.app.core.google.GoogleIdTokenPayload
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
@@ -37,6 +38,7 @@ class GoogleAccountRepository @Inject constructor(
     @ApplicationContext private val context: android.content.Context,
     private val store: AccountSessionStore,
     private val syncScheduler: com.orvane.app.core.google.GoogleSyncScheduler,
+    private val tokenProvider: com.orvane.app.core.google.AccessTokenProvider,
 ) : AccountRepository {
     override val session: Flow<AccountSession?> = store.session
 
@@ -81,12 +83,23 @@ class GoogleAccountRepository @Inject constructor(
             credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
         ) {
             val g = GoogleIdTokenCredential.createFrom(credential.data)
+            // The account email comes from the ID token's `email` claim (the
+            // library's getId() semantics are opaque); GoogleAuthUtil needs the
+            // exact account name for silent token mints.
+            val email = GoogleIdTokenPayload.email(g.idToken) ?: g.id
             val session = AccountSession(
                 id = g.id,
-                email = g.id,
+                email = email,
                 displayName = g.displayName ?: "",
             )
             store.save(session)
+            android.util.Log.d("OrvaneAuth", "session persisted: keys=[account_id, account_email, account_name]")
+
+            // First-use scope consent needs an interactive context; grant it
+            // right after the account pick so background token mints work from
+            // then on. Denied consent is recoverable via Settings → Account →
+            // Grant access; result is intentionally ignored here.
+            runCatching { tokenProvider.accessToken(activity) }
             session
         } else {
             error("Unexpected credential type: ${credential.type}")
